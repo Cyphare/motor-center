@@ -7,6 +7,7 @@ import { LogOut, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RoleGuard } from "@/components/guards/role-guard";
 import { useAuth } from "@/hooks/use-auth";
+import { PELANGGAN_NAV_LINKS } from "@/lib/nav-links";
 
 export default function PelangganLayout({
   children,
@@ -34,15 +35,11 @@ export default function PelangganLayout({
               <span>MotorCenter</span>
             </Link>
             <nav className="flex items-center gap-2">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/pelanggan">Servis Saya</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/pelanggan/baru">Pesan Servis</Link>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/catalog">Layanan</Link>
-              </Button>
+              {PELANGGAN_NAV_LINKS.map((link) => (
+                <Button key={link.href} asChild variant="ghost" size="sm">
+                  <Link href={link.href}>{link.label}</Link>
+                </Button>
+              ))}
               {user && (
                 <span className="hidden text-sm text-muted-foreground sm:inline">
                   {user.name}
