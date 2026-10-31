@@ -38,6 +38,14 @@ export function useParts(query: PartListQuery = {}, enabled = true) {
   });
 }
 
+export function useLowStockParts(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.lowStock(),
+    queryFn: () => partsService.lowStock(),
+    enabled,
+  });
+}
+
 export function useServices(query: ServiceListQuery = {}, enabled = true) {
   return useQuery({
     queryKey: queryKeys.services(query),

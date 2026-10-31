@@ -7,6 +7,8 @@ import * as authService from "@/services/auth";
 import * as bookingsService from "@/services/bookings";
 import * as partsService from "@/services/parts";
 import * as servicesService from "@/services/services";
+import * as usersService from "@/services/users";
+import type { CreateStaffPayload } from "@/services/users";
 import type {
   AddPartPayload,
   CreateOnlineBookingPayload,
@@ -147,6 +149,35 @@ export function useUpdatePart() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
       toast.success("Suku cadang berhasil diperbarui");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useCreateStaff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateStaffPayload) => usersService.createStaff(data),
+    onSuccess: (user) => {
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      void queryClient.invalidateQueries({ queryKey: ["mechanics"] });
+      toast.success(`Akun staf ${user.name} berhasil dibuat`);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useToggleUserStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      usersService.toggleStatus(id, isActive),
+    onSuccess: (user) => {
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      void queryClient.invalidateQueries({ queryKey: ["mechanics"] });
+      toast.success(
+        `Akun ${user.name} berhasil ${user.isActive ? "diaktifkan" : "dinonaktifkan"}`
+      );
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
