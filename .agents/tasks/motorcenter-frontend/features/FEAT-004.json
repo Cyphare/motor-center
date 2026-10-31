@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Kasir/Admin operations area: walk-in ticket creation, mechanic assignment, sequential status advance including cancel-from-Antre and checkout to Diambil (admin/kasir only), invoice download after checkout, and master-data management for spare parts and services catalog. Depends on FEAT-001, FEAT-002, FEAT-003 (shared status/parts controls and hooks).",
+  "status": "completed",
+  "steps": [
+    "Create frontend/src/app/(staff)/ guarded to roles ['admin','kasir'] with layout/nav. Build the ticket queue page using useBookings with filters (status, bookingType, plateNumber, date range, mechanicId) and pagination from the paginated envelope.",
+    "Build the walk-in creation form (react-hook-form + zod mirroring createWalkInBookingSchema: customerName 2-100, customerPhone 8-20, plateNumber 3-15, motorModel 2-50, complaint 3-500, optional serviceId from catalog, optional mechanicId from useMechanics, optional serviceFee>=0). On success invalidate bookings and toast.",
+    "Build the staff ticket detail reusing the StatusStepper and the shared status-advance + parts controls from FEAT-003, but for admin/kasir expose the full legal transition set including Antre->Dibatalkan and Selesai->Diambil (checkout). Enforce the backend rule in the UI that a mechanic must be assigned before moving to Diperiksa.",
+    "Add an assign-mechanic dialog (useMechanics -> assign mutation) on the staff ticket detail and queue.",
+    "On checkout to Diambil, after success surface the invoice Download PDF button (invoicePdfBlob) for the ticket (admin/kasir allowed).",
+    "Build master-data management under (staff): a parts page listing useParts with isLowStock highlighting, a create-part form and an edit (restock/price) form mirroring catalog.validation.ts part schema (code, name, stock, minStock, price, unit); and a services page listing services with create/edit forms mirroring the service schema (name, description, estimatedPrice, estimatedDurationMinutes). Wire create/update mutations with toasts and query invalidation."
+  ],
+  "acceptance_criteria": [
+    "pnpm run build and pnpm run lint pass.",
+    "A kasir/admin can create a walk-in ticket, assign a mechanic, advance Antre->Diperiksa->Dikerjakan->Selesai->Diambil, and cancel an Antre ticket.",
+    "The UI blocks moving to Diperiksa before a mechanic is assigned.",
+    "After checkout (Diambil) the invoice downloads successfully.",
+    "Parts can be created, restocked, and repriced; services can be created and edited; low-stock parts are visually flagged.",
+    "All data comes from the API with full form validation and error handling; nothing hardcoded."
+  ],
+  "verification": [
+    "cd c:/Users/Acer/Documents/ANTIGRAV/bengkel-motor-6/frontend && pnpm run build && pnpm run lint",
+    "Manual (backend + seeded DB): as kasir@motorcenter.id run a full walk-in lifecycle through Diambil and download the invoice; create/restock a part and create a service. If no DB is available, record which steps were unverified."
+  ],
+  "blocked_reason": null,
+  "findings": "Implemented the (staff) area for roles ['admin','kasir'] at /staff. Files added: src/app/(staff)/layout.tsx (RoleGuard + nav: Antrean, Tiket Baru, Suku Cadang, Layanan), src/app/(staff)/staff/page.tsx (queue with filters status/bookingType/mechanicId/plateNumber/startDate/endDate + prev/next pagination from the paginated envelope), src/app/(staff)/staff/baru/page.tsx (walk-in form mirroring createWalkInBookingSchema; serviceFee kept as a string and converted on submit), src/app/(staff)/staff/[id]/page.tsx (ticket detail: StatusStepper, full legal transitions via nextStatuses incl. Antre->Dibatalkan [destructive button] and Selesai->Diambil ['Checkout' button], assign-mechanic Dialog using useMechanics+useAssignMechanic, parts add/remove in Diperiksa/Dikerjakan, invoice Download PDF button shown when status==='Diambil'), src/app/(staff)/staff/parts/page.tsx and services/page.tsx (master-data CRUD with create/edit Dialogs). Added mutations to src/hooks/use-mutations.ts: useCreatePart, useUpdatePart, useCreateService, useUpdateService (each invalidates its query + toasts).\n\nKEY NOTES FOR FEAT-005: (1) The Diperiksa-needs-mechanic rule is enforced in the UI by reading booking.mechanicId (string OR populated object) via a local assignedMechanic() helper; the Diperiksa advance is blocked + opens the assign dialog when no mechanic is set. (2) The /staff area root is ALREADY registered in src/lib/roles.ts AREA_ROLES/ROLE_HOME (admin+kasir -> /staff), so no roles.ts change was needed and admin already lands here. (3) IMPORTANT PATTERN for numeric form fields: zodResolver + z.coerce.number() breaks the build because the resolver input type becomes `unknown` and clashes with useForm<Output>; keep number <input> fields as z.string() with a refine() and convert to Number on submit (see toPartPayload/toServicePayload and the walk-in serviceFee). Use this same approach for any numeric forms in FEAT-005 (e.g. report date ranges / revenue). (4) No Textarea UI component exists; plain Input is used for multi-field text (matches FEAT-003). (5) Invoice download reuses the exact pattern from the pelanggan detail page (invoicePdfBlob -> object URL -> anchor click).\n\nVERIFICATION: `pnpm run build` PASS (all 5 /staff routes compiled: /staff, /staff/[id], /staff/baru, /staff/parts, /staff/services; TypeScript finished clean) and `pnpm run lint` PASS (0 errors, 0 warnings). Manual end-to-end lifecycle (walk-in -> Diambil, invoice download, part restock, service create) was NOT executed: MONGODB_URI is the placeholder YOUR_ATLAS_CONNECTION_STRING per context.json, so no live/seeded DB was available in this step."
+}

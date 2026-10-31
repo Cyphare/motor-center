@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Public and authentication surface: landing page, login, customer self-registration, and a public services-catalog browse page. Establishes the entry flow and the redirect-to-role-home behavior. Depends on FEAT-001 (api-client, services, auth-context, guards, shared UI).",
+  "status": "completed",
+  "steps": [
+    "Create a public route group frontend/src/app/(public)/ with a simple, attractive landing page describing MotorCenter and linking to login/register and the public catalog.",
+    "Build the login page (frontend/src/app/(public)/login/page.tsx) using react-hook-form + zod: email (valid email) and password (min 1). On submit call the useLogin mutation; on success store the session via auth-context and redirect to the user's role home using the role->home map; on error show a toast and inline field/message errors from the backend error envelope.",
+    "Build the register page (frontend/src/app/(public)/register/page.tsx) with zod rules mirroring backend/src/validations/auth.validation.ts: name min 2 max 100, valid email, password min 6, phone min 8. Backend always assigns role pelanggan. On success store session and redirect to /pelanggan.",
+    "Build the public catalog page consuming the PUBLIC GET /api/services (no auth) via useServices, rendering service cards (name, description, estimatedPrice via Rupiah formatter, estimatedDurationMinutes) with loading skeletons and an empty state.",
+    "Ensure already-authenticated users visiting /login or /register are redirected to their role home."
+  ],
+  "acceptance_criteria": [
+    "pnpm run build and pnpm run lint pass.",
+    "Logging in with each seeded account (admin, kasir, mekanik, pemilik, pelanggan) redirects to the correct role home.",
+    "Register validation blocks invalid input client-side with messages, and backend 409 duplicate-email errors surface as a readable toast/inline message.",
+    "The public catalog renders services from the API with no hardcoded data, including loading and empty states."
+  ],
+  "verification": [
+    "cd c:/Users/Acer/Documents/ANTIGRAV/bengkel-motor-6/frontend && pnpm run build && pnpm run lint",
+    "Manual (requires backend running against a live or in-memory DB, seeded): log in as andi.pelanggan@gmail.com/pelanggan123 and admin@motorcenter.id/admin123 and confirm each lands on its role home; if no DB is available, record this as unverified."
+  ],
+  "blocked_reason": null,
+  "findings": "Public surface built under route group frontend/src/app/(public)/ (route groups do NOT change the URL): landing at '/', '/login', '/register', '/catalog'. Removed the old frontend/src/app/page.tsx (landing now lives in the group). Added a shared public header in (public)/layout.tsx linking to /catalog, /login, /register. FEAT-003..005 that add role areas (/pelanggan, /staff, /mekanik, /owner) create their OWN route groups/layouts; do not nest them under (public). New reusable helpers created this step: (1) hooks/use-redirect-authenticated.ts -> useRedirectAuthenticated(): redirects an already-authenticated visitor to homeForRole(user.role) and returns {redirecting} for a loading state; reuse on any other public-only page. (2) lib/form-errors.ts -> applyApiFieldErrors(error, form.setError, knownFields): maps backend Zod errors=[{field,location,message}] onto RHF fields, stripping the leading 'body.' prefix the backend uses; reuse for all forms. Login calls useLogin() then router.replace(homeForRole(result.user.role)) in the mutate onSuccess callback (component-level, not only the hook toast). Register calls useRegister() and redirects to /pelanggan (backend always assigns role pelanggan). ROLE_HOME map (lib/roles.ts): pelanggan->/pelanggan, kasir->/staff, admin->/staff, mekanik->/mekanik, pemilik->/owner. Catalog consumes the PUBLIC GET /api/services via useServices() (data.data array) with skeleton loading, ErrorState with retry, and EmptyState; includes a local formatDuration() helper for estimatedDurationMinutes and formatRupiah() for price - no hardcoded services. Verification: 'pnpm run build && pnpm run lint' PASSED (Next.js 16.4.3, routes /, /catalog, /login, /register all generated). Manual seeded-login redirect check NOT executed - no live/in-memory MongoDB available in this environment (MONGODB_URI is the placeholder); redirect logic is wired via homeForRole and should be smoke-tested once a DB + seeded accounts are available. Note: zod is v4 in this project; schemas use z.string().min(1,...).email(...) ordering."
+}
