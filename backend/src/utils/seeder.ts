@@ -164,15 +164,15 @@ export const assertEmptyDatabase = async (): Promise<void> => {
   }
 };
 
-export const seedDatabase = async () => {
-  try {
-    console.log('\n======================================================');
-    console.log('[seeder] Starting database seeder for MotorCenter...');
-    const connection = await connectDatabase();
-    if (!connection) throw new Error('Koneksi database gagal; seeder tidak dijalankan');
-    await assertEmptyDatabase();
+/**
+ * Menjalankan proses seeding pada koneksi database yang sudah aktif.
+ * Dipakai ulang oleh seeder CLI (seedDatabase) maupun launcher in-memory,
+ * tanpa membuka/menutup koneksi atau memanggil process.exit.
+ */
+export const populateDatabase = async () => {
+  await assertEmptyDatabase();
 
-    const createdUsers: Record<string, any> = {};
+  const createdUsers: Record<string, any> = {};
     for (const userData of defaultUsers) {
       const user = await User.create(userData);
       createdUsers[user.email] = user;
@@ -384,7 +384,15 @@ export const seedDatabase = async () => {
     console.log('| Pelanggan   | andi.pelanggan@gmail.com      | pelanggan123   | Active  |');
     console.log('---------------------------------------------------------------------------------');
     console.log(`[seeder] Generated: 6 users, ${createdServices.length} services, ${createdParts.length} parts, ${sampleBookings.length} bookings.\n`);
+};
 
+export const seedDatabase = async () => {
+  try {
+    console.log('\n======================================================');
+    console.log('[seeder] Starting database seeder for MotorCenter...');
+    const connection = await connectDatabase();
+    if (!connection) throw new Error('Koneksi database gagal; seeder tidak dijalankan');
+    await populateDatabase();
     await disconnectDatabase();
     process.exit(0);
   } catch (error: any) {
