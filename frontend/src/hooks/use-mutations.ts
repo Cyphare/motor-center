@@ -5,12 +5,19 @@ import { toast } from "sonner";
 
 import * as authService from "@/services/auth";
 import * as bookingsService from "@/services/bookings";
+import * as partsService from "@/services/parts";
+import * as servicesService from "@/services/services";
 import type {
   AddPartPayload,
   CreateOnlineBookingPayload,
   CreateWalkInBookingPayload,
   UpdateStatusPayload,
 } from "@/services/bookings";
+import type { CreatePartPayload, UpdatePartPayload } from "@/services/parts";
+import type {
+  CreateServicePayload,
+  UpdateServicePayload,
+} from "@/services/services";
 import { useAuth } from "@/hooks/use-auth";
 import { ApiRequestError } from "@/lib/api-client";
 
@@ -115,6 +122,56 @@ export function useRemovePart() {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
       toast.success("Suku cadang dibatalkan dan stok dikembalikan");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useCreatePart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreatePartPayload) => partsService.create(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      toast.success("Suku cadang berhasil dibuat");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useUpdatePart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdatePartPayload }) =>
+      partsService.update(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      toast.success("Suku cadang berhasil diperbarui");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useCreateService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateServicePayload) => servicesService.create(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("Layanan berhasil dibuat");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useUpdateService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateServicePayload }) =>
+      servicesService.update(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("Layanan berhasil diperbarui");
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
