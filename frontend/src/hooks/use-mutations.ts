@@ -66,6 +66,7 @@ export function useCreateBooking() {
         : bookingsService.createWalkIn(payload.data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success("Tiket servis berhasil dibuat");
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -82,6 +83,7 @@ export function useUpdateStatus() {
       void queryClient.invalidateQueries({
         queryKey: ["parts"],
       });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success(`Status diubah ke '${booking.status}'`);
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -109,6 +111,7 @@ export function useAddPart() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success("Suku cadang ditambahkan ke tiket");
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -123,6 +126,7 @@ export function useRemovePart() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success("Suku cadang dibatalkan dan stok dikembalikan");
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -135,6 +139,7 @@ export function useCreatePart() {
     mutationFn: (data: CreatePartPayload) => partsService.create(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success("Suku cadang berhasil dibuat");
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -148,6 +153,7 @@ export function useUpdatePart() {
       partsService.update(id, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success("Suku cadang berhasil diperbarui");
     },
     onError: (error) => toast.error(errorMessage(error)),

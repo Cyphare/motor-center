@@ -22,3 +22,17 @@ export function nextStatuses(from: ServiceStatus): ServiceStatus[] {
 export function isTerminalStatus(status: ServiceStatus): boolean {
   return (ALLOWED_TRANSITIONS[status] ?? []).length === 0;
 }
+
+/**
+ * Whether a ticket may still be assigned (or reassigned) a mechanic. Mirrors
+ * the backend `assignMechanic` guard, which rejects Selesai, Diambil, and
+ * Dibatalkan tickets: offering assignment once work is finished, picked up, or
+ * canceled would only surface a 400 from the API.
+ */
+export function canAssignMechanic(status: ServiceStatus): boolean {
+  return (
+    status !== "Selesai" &&
+    status !== "Diambil" &&
+    status !== "Dibatalkan"
+  );
+}

@@ -66,6 +66,35 @@ function toApiError(error: unknown): ApiRequestError {
   );
 }
 
+/**
+ * Decode blob-typed error bodies (e.g. a rejected invoice PDF response) into a
+ * typed ApiRequestError. With `responseType: "blob"`, axios delivers a non-2xx
+ * body as a Blob instead of parsed JSON, so the synchronous `toApiError` cannot
+ * read the backend `message`/`errors`. Read the Blob text, parse the envelope,
+ * and fall back to `toApiError` for any non-JSON body.
+ */
+async function toApiErrorFromBlob(error: unknown): Promise<ApiRequestError> {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status ?? 0;
+    const body = error.response?.data;
+    if (body instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await body.text()) as ApiErrorEnvelope;
+        return new ApiRequestError(
+          parsed.message ??
+            error.message ??
+            "Terjadi kesalahan jaringan tak terduga",
+          status,
+          parsed.errors ?? []
+        );
+      } catch {
+        // Body was not JSON; fall through to the generic helper.
+      }
+    }
+  }
+  return toApiError(error);
+}
+
 // Unwrap the envelope on success; throw a typed error otherwise. A 401 clears
 // the session so the app can redirect to /login.
 apiClient.interceptors.response.use(
@@ -128,7 +157,7 @@ export async function requestBlob(config: AxiosRequestConfig): Promise<Blob> {
     });
     return response.data;
   } catch (error) {
-    const apiError = toApiError(error);
+    const apiError = await toApiErrorFromBlob(error);
     if (apiError.status === 401) {
       clearSession();
     }

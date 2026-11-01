@@ -45,7 +45,7 @@ import {
 } from "@/hooks/use-mutations";
 import { invoicePdfBlob } from "@/services/bookings";
 import { ApiRequestError } from "@/lib/api-client";
-import { nextStatuses } from "@/lib/transitions";
+import { canAssignMechanic, nextStatuses } from "@/lib/transitions";
 import type { Booking, Mechanic, ServiceStatus } from "@/types/api";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 
@@ -185,7 +185,7 @@ export default function StaffBookingDetailPage() {
     );
   }
 
-  const canAssign = booking.status !== "Diambil" && booking.status !== "Dibatalkan";
+  const canAssign = canAssignMechanic(booking.status);
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">

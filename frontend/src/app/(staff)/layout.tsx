@@ -46,6 +46,11 @@ export default function StaffLayout({
               <Button asChild variant="ghost" size="sm">
                 <Link href="/staff/services">Layanan</Link>
               </Button>
+              {user?.role === "admin" && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/owner">Laporan</Link>
+                </Button>
+              )}
               {user && (
                 <span className="hidden px-2 text-sm text-muted-foreground sm:inline">
                   {user.name}

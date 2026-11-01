@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ALLOWED_TRANSITIONS } from "@/types/api";
 import {
+  canAssignMechanic,
   canTransition,
   isTerminalStatus,
   nextStatuses,
@@ -51,5 +52,19 @@ describe("nextStatuses / isTerminalStatus", () => {
     expect(isTerminalStatus("Diambil")).toBe(true);
     expect(isTerminalStatus("Dibatalkan")).toBe(true);
     expect(isTerminalStatus("Antre")).toBe(false);
+  });
+});
+
+describe("canAssignMechanic", () => {
+  it("allows assigning while the ticket is still in progress", () => {
+    expect(canAssignMechanic("Antre")).toBe(true);
+    expect(canAssignMechanic("Diperiksa")).toBe(true);
+    expect(canAssignMechanic("Dikerjakan")).toBe(true);
+  });
+
+  it("disallows assigning once the ticket is finished, picked up, or canceled", () => {
+    expect(canAssignMechanic("Selesai")).toBe(false);
+    expect(canAssignMechanic("Diambil")).toBe(false);
+    expect(canAssignMechanic("Dibatalkan")).toBe(false);
   });
 });

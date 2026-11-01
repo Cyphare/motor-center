@@ -1,16 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { AxiosAdapter } from "axios";
+import axios, { AxiosError, type AxiosAdapter } from "axios";
 
 import {
   ApiRequestError,
   apiClient,
   request,
+  requestBlob,
   requestPaginated,
 } from "@/lib/api-client";
 
 // Swap the axios adapter so requests resolve/reject from canned responses
 // without any network, exercising the real interceptors.
 const originalAdapter = apiClient.defaults.adapter;
+const originalDefaultAdapter = axios.defaults.adapter;
 
 function mockAdapter(response: {
   status: number;
@@ -33,6 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   apiClient.defaults.adapter = originalAdapter;
+  axios.defaults.adapter = originalDefaultAdapter;
 });
 
 describe("request (envelope unwrap)", () => {
@@ -132,5 +135,68 @@ describe("error throwing", () => {
       name: "ApiRequestError",
       message: "Tetap gagal",
     });
+  });
+});
+
+describe("requestBlob error decoding", () => {
+  // requestBlob uses responseType: "blob", so a rejected response delivers the
+  // body as a Blob. Reject the default axios adapter with an AxiosError whose
+  // response.data is a Blob, which is what axios produces for a blob request.
+  function rejectingBlobAdapter(blob: Blob, status: number): AxiosAdapter {
+    return async (config) => {
+      throw new AxiosError(
+        `Request failed with status code ${status}`,
+        AxiosError.ERR_BAD_REQUEST,
+        config,
+        undefined,
+        {
+          data: blob,
+          status,
+          statusText: "Bad Request",
+          headers: {},
+          config,
+        }
+      );
+    };
+  }
+
+  it("decodes a JSON blob error body into a friendly ApiRequestError", async () => {
+    const blob = new Blob(
+      [
+        JSON.stringify({
+          success: false,
+          message: "Faktur tersedia setelah tiket berstatus Diambil",
+          errors: [],
+        }),
+      ],
+      { type: "application/json" }
+    );
+
+    axios.defaults.adapter = rejectingBlobAdapter(blob, 400);
+
+    await expect(
+      requestBlob({ method: "GET", url: "/bookings/x/invoice/pdf" })
+    ).rejects.toMatchObject({
+      name: "ApiRequestError",
+      status: 400,
+      message: "Faktur tersedia setelah tiket berstatus Diambil",
+    });
+  });
+
+  it("falls back to the generic axios message when the blob body is not JSON", async () => {
+    const blob = new Blob(["<html>Not Found</html>"], { type: "text/html" });
+
+    axios.defaults.adapter = rejectingBlobAdapter(blob, 404);
+
+    try {
+      await requestBlob({ method: "GET", url: "/bookings/x/invoice/pdf" });
+      throw new Error("should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiRequestError);
+      const apiError = error as ApiRequestError;
+      expect(apiError.status).toBe(404);
+      expect(apiError.message).toContain("Request failed");
+      expect(apiError.fieldErrors).toEqual([]);
+    }
   });
 });
