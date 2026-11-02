@@ -1,5 +1,21 @@
 # MotorCenter - Motorcycle Workshop & Inventory Management System
 
+> [!IMPORTANT]
+> **Branch: `with-dummy-data` (Mode Demo Langsung / Out-of-the-Box Demo)**  
+> Cabang ini **langsung siap dijalankan tanpa perlu konfigurasi MongoDB eksternal**. Menjalankan `pnpm run dev` pada direktori `backend/` akan otomatis mem-boot instance MongoDB in-memory dan menginjeksi seluruh **data dummy & akun bawaan**.
+> 
+> ```bash
+> # Terminal 1 - Backend (In-Memory + Pre-seeded Dummy Data)
+> cd backend
+> pnpm install
+> pnpm run dev
+> 
+> # Terminal 2 - Frontend (Next.js)
+> cd frontend
+> pnpm install
+> pnpm run dev
+> ```
+
 Final Project for **Web Application Development (Pengembangan Aplikasi Web - TKIF262402)**  
 **Milestone 1: Backend Engineering & API Specification**  
 Department of Electrical Engineering and Information Technology, Faculty of Engineering, Universitas Gadjah Mada.
