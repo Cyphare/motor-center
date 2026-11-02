@@ -1,5 +1,27 @@
 # MotorCenter - Motorcycle Workshop & Inventory Management System
 
+> [!WARNING]
+> **Branch: `connect-db-first` (Wajib Terhubung ke Basis Data MongoDB Terlebih Dahulu)**
+> Cabang ini dikonfigurasi untuk **lingkungan produksi / database eksternal nyata**. Server backend **wajib dihubungkan ke basis data MongoDB (Atlas / Local)** sebelum API dapat memproses data.
+>
+> ### Langkah Memulai:
+> 1. Buat berkas `backend/.env` (salin dari `backend/.env.example`).
+> 2. Masukkan URI database Anda pada `MONGODB_URI` (contoh: `mongodb+srv://user:password@cluster.mongodb.net/motorcenter`).
+> 3. Tentukan `JWT_SECRET` rahasia (minimal 8 karakter).
+> 4. Jalankan seeder master data awal jika database masih kosong:
+>    ```bash
+>    cd backend
+>    pnpm install
+>    pnpm run seed
+>    pnpm run dev
+>    ```
+> 5. Di terminal lain, jalankan antarmuka frontend:
+>    ```bash
+>    cd frontend
+>    pnpm install
+>    pnpm run dev
+>    ```
+
 Final Project for **Web Application Development (Pengembangan Aplikasi Web - TKIF262402)**  
 **Milestone 1: Backend Engineering & API Specification**  
 Department of Electrical Engineering and Information Technology, Faculty of Engineering, Universitas Gadjah Mada.
