@@ -8,6 +8,10 @@ import * as bookingsService from "@/services/bookings";
 import * as partsService from "@/services/parts";
 import * as servicesService from "@/services/services";
 import * as usersService from "@/services/users";
+import type {
+  ChangePasswordPayload,
+  UpdateProfilePayload,
+} from "@/services/auth";
 import type { CreateStaffPayload } from "@/services/users";
 import type {
   AddPartPayload,
@@ -48,6 +52,38 @@ export function useRegister() {
     onSuccess: (result) => {
       login(result);
       toast.success("Pendaftaran akun berhasil");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useUpdateProfile() {
+  const { setUser } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateProfilePayload) => authService.updateMe(data),
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      void queryClient.invalidateQueries({ queryKey: ["mechanics"] });
+      toast.success("Profil berhasil diperbarui");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useChangePassword() {
+  const { logout } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ChangePasswordPayload) =>
+      authService.changePassword(data),
+    onSuccess: () => {
+      queryClient.clear();
+      logout();
+      toast.success(
+        "Kata sandi berhasil diperbarui. Silakan masuk kembali dengan sandi baru."
+      );
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -160,6 +196,19 @@ export function useUpdatePart() {
   });
 }
 
+export function useDeletePart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => partsService.remove(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
+      toast.success("Suku cadang berhasil dinonaktifkan");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
 export function useCreateStaff() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -209,6 +258,18 @@ export function useUpdateService() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["services"] });
       toast.success("Layanan berhasil diperbarui");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useDeleteService() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => servicesService.remove(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["services"] });
+      toast.success("Layanan berhasil dinonaktifkan");
     },
     onError: (error) => toast.error(errorMessage(error)),
   });

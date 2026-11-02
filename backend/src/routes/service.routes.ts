@@ -14,7 +14,10 @@ router.get('/', validate(catalogQuerySchema), (req, res, next) => {
   if (req.query.includeInactive === 'true') return authMiddleware(req, res, error => error ? next(error) : inactiveReaders(req, res, next));
   next();
 }, listServices);
-router.get('/:id', getService);
+router.get('/:id', (req, res, next) => {
+  if (req.query.includeInactive === 'true') return authMiddleware(req, res, error => error ? next(error) : inactiveReaders(req, res, next));
+  next();
+}, getService);
 router.post('/', authMiddleware, staff, validate(createServiceSchema), createService);
 router.put('/:id', authMiddleware, staff, validate(updateServiceSchema), updateService);
 router.delete('/:id', authMiddleware, staff, deleteService);

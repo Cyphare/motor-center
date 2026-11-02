@@ -22,7 +22,7 @@ export const authMiddleware = async (
 
     const decoded = verifyToken(token);
 
-    const user = await User.findById(decoded.id).select('isActive role');
+    const user = await User.findById(decoded.id).select('isActive role tokenVersion');
     if (!user) {
       throw new UnauthorizedError('Pengguna dengan kredensial ini tidak lagi terdaftar');
     }
@@ -31,7 +31,17 @@ export const authMiddleware = async (
       throw new UnauthorizedError('Akun Anda telah dinonaktifkan. Silakan hubungi administrator bengkel');
     }
 
-    req.user = { ...decoded, role: user.role };
+    if ((decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+      throw new UnauthorizedError(
+        'Sesi autentikasi telah berakhir karena perubahan kata sandi. Silakan login kembali'
+      );
+    }
+
+    req.user = {
+      ...decoded,
+      role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
+    };
     next();
   } catch (error) {
     next(error);

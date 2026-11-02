@@ -2,7 +2,8 @@
  * Dev-only launcher: jalankan MotorCenter dengan MongoDB in-memory sementara.
  *
  * Alur:
- *   1. Boot satu instance mongod in-memory (mongodb-memory-server).
+ *   1. Boot satu instance replica-set mongod in-memory (MongoMemoryReplSet)
+ *      agar transaksi multi-dokumen (tambah/hapus suku cadang) didukung penuh.
  *   2. Set process.env.MONGODB_URI ke URI instance tersebut SEBELUM modul
  *      aplikasi (yang membaca env lewat src/config/env.ts) di-import.
  *      dotenv.config() tidak menimpa variabel yang sudah ada, sehingga nilai
@@ -17,16 +18,16 @@
  *
  * Catatan: file ini TIDAK boleh di-import oleh kode produksi.
  */
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 
 const bootstrap = async () => {
   console.log('\n======================================================');
-  console.log('[dev:memory] Menyiapkan MongoDB in-memory sementara...');
+  console.log('[dev:memory] Menyiapkan MongoDB replica-set in-memory sementara...');
 
-  const mongod = await MongoMemoryServer.create({
-    instance: { dbName: 'motorcenter' },
+  const replSet = await MongoMemoryReplSet.create({
+    replSet: { count: 1, dbName: 'motorcenter' },
   });
-  const uri = mongod.getUri('motorcenter');
+  const uri = replSet.getUri('motorcenter');
 
   // Harus diset sebelum modul apa pun yang meng-import src/config/env.ts.
   process.env.MONGODB_URI = uri;
@@ -37,7 +38,7 @@ const bootstrap = async () => {
   // Pastikan mongod dihentikan saat proses berakhir.
   const stopMongod = async () => {
     try {
-      await mongod.stop();
+      await replSet.stop();
       console.log('[dev:memory] MongoDB in-memory dihentikan.');
     } catch (error: any) {
       console.error('[dev:memory] Gagal menghentikan MongoDB in-memory:', error?.message ?? error);
@@ -46,7 +47,7 @@ const bootstrap = async () => {
   process.on('exit', () => {
     // best-effort; stop() bersifat async tetapi mongod child-process akan
     // dibersihkan oleh library saat proses induk keluar.
-    void mongod.stop();
+    void replSet.stop();
   });
   process.on('SIGINT', async () => {
     await stopMongod();

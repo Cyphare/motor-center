@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import type { AuthResult, User } from "@/types/api";
 import * as authService from "@/services/auth";
@@ -27,6 +28,8 @@ export interface AuthContextValue {
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
+
   // Lazy initializers read the persisted session on the first client render,
   // avoiding synchronous setState inside the hydration effect.
   const [user, setUserState] = React.useState<User | null>(() => getStoredUser());
@@ -70,10 +73,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Keep context in sync when the session store is cleared elsewhere (401).
   React.useEffect(() => {
     return subscribe(() => {
-      setTokenState(getToken());
+      const currentToken = getToken();
+      setTokenState(currentToken);
       setUserState(getStoredUser());
+      if (!currentToken) {
+        queryClient.clear();
+      }
     });
-  }, []);
+  }, [queryClient]);
 
   const login = React.useCallback((result: AuthResult) => {
     setSession(result.accessToken, result.user);
@@ -85,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearSession();
     setTokenState(null);
     setUserState(null);
-  }, []);
+    queryClient.clear();
+  }, [queryClient]);
 
   const refresh = React.useCallback(async () => {
     try {

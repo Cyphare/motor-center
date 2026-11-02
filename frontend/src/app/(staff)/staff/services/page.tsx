@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useForm, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Pencil, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,37 +21,20 @@ import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
 import { useServices } from "@/hooks/use-queries";
-import { useCreateService, useUpdateService } from "@/hooks/use-mutations";
+import {
+  useCreateService,
+  useDeleteService,
+  useUpdateService,
+} from "@/hooks/use-mutations";
 import { applyApiFieldErrors } from "@/lib/form-errors";
 import { formatRupiah } from "@/lib/format";
+import { serviceFormSchema, type ServiceFormValues } from "@/lib/validations";
 import type { Service } from "@/types/api";
 
-// Mirrors backend/src/validations/catalog.validation.ts service schema.
-// Numeric fields stay strings in the form (number <input>) and convert on
-// submit, matching the project's existing form pattern.
-const serviceSchema = z.object({
-  name: z.string().trim().min(1, "Nama wajib diisi").max(100),
-  description: z.string().trim().min(1, "Deskripsi wajib diisi").max(1000),
-  estimatedPrice: z
-    .string()
-    .min(1, "Harga wajib diisi")
-    .refine((value) => {
-      const n = Number(value);
-      return Number.isInteger(n) && n >= 0;
-    }, "Harga harus bilangan bulat tidak negatif"),
-  estimatedDurationMinutes: z
-    .string()
-    .min(1, "Durasi wajib diisi")
-    .refine((value) => {
-      const n = Number(value);
-      return Number.isInteger(n) && n > 0;
-    }, "Durasi harus bilangan bulat lebih dari 0"),
-});
-
-type ServiceValues = z.infer<typeof serviceSchema>;
-
-function toServicePayload(values: ServiceValues) {
+function toServicePayload(values: ServiceFormValues) {
   return {
     name: values.name.trim(),
     description: values.description.trim(),
@@ -72,16 +54,35 @@ export default function StaffServicesPage() {
   const { data, isLoading, isError, error, refetch } = useServices({
     includeInactive: true,
   });
-  const services = data?.data ?? [];
+  const services = data ?? [];
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Service | null>(null);
+  const [toggleTarget, setToggleTarget] = React.useState<Service | null>(null);
+
+  const deleteService = useDeleteService();
+  const reactivateService = useUpdateService();
+  const togglePending = deleteService.isPending || reactivateService.isPending;
+
+  function handleConfirmToggle() {
+    if (!toggleTarget) return;
+    if (toggleTarget.isActive) {
+      deleteService.mutate(toggleTarget._id, {
+        onSuccess: () => setToggleTarget(null),
+      });
+    } else {
+      reactivateService.mutate(
+        { id: toggleTarget._id, data: { isActive: true } },
+        { onSuccess: () => setToggleTarget(null) }
+      );
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Layanan"
-        description="Kelola katalog layanan servis bengkel."
+        description="Kelola katalog dan status aktif layanan servis bengkel."
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
@@ -92,7 +93,7 @@ export default function StaffServicesPage() {
 
       <div className="mt-8">
         {isLoading ? (
-          <TableSkeleton rows={5} columns={4} />
+          <TableSkeleton rows={5} columns={5} />
         ) : isError ? (
           <ErrorState
             message={error instanceof Error ? error.message : undefined}
@@ -118,18 +119,47 @@ export default function StaffServicesPage() {
                 cell: (service) => `${service.estimatedDurationMinutes} menit`,
               },
               {
+                key: "status",
+                header: "Status",
+                cell: (service) =>
+                  service.isActive ? (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                    >
+                      Aktif
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-slate-200 bg-slate-100 text-slate-600"
+                    >
+                      Nonaktif
+                    </Badge>
+                  ),
+              },
+              {
                 key: "actions",
                 header: "",
                 className: "text-right",
                 cell: (service) => (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditing(service)}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Ubah
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditing(service)}
+                    >
+                      <Pencil className="mr-1 h-4 w-4" />
+                      Ubah
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setToggleTarget(service)}
+                    >
+                      {service.isActive ? "Nonaktifkan" : "Aktifkan"}
+                    </Button>
+                  </div>
                 ),
               },
             ]}
@@ -141,6 +171,26 @@ export default function StaffServicesPage() {
 
       <CreateServiceDialog open={createOpen} onOpenChange={setCreateOpen} />
       <EditServiceDialog service={editing} onClose={() => setEditing(null)} />
+      <ConfirmDialog
+        open={Boolean(toggleTarget)}
+        onOpenChange={(value) => !value && setToggleTarget(null)}
+        title={
+          toggleTarget?.isActive
+            ? "Nonaktifkan layanan?"
+            : "Aktifkan layanan?"
+        }
+        description={
+          toggleTarget
+            ? toggleTarget.isActive
+              ? `${toggleTarget.name} akan disembunyikan dari katalog publik dan pilihan booking baru.`
+              : `${toggleTarget.name} akan kembali tampil di katalog publik.`
+            : undefined
+        }
+        confirmLabel={toggleTarget?.isActive ? "Nonaktifkan" : "Aktifkan"}
+        destructive={toggleTarget?.isActive ?? false}
+        loading={togglePending}
+        onConfirm={handleConfirmToggle}
+      />
     </main>
   );
 }
@@ -148,7 +198,7 @@ export default function StaffServicesPage() {
 function ServiceFormFields({
   control,
 }: {
-  control: Control<ServiceValues>;
+  control: Control<ServiceFormValues>;
 }) {
   return (
     <>
@@ -185,8 +235,8 @@ function CreateServiceDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const createService = useCreateService();
-  const form = useForm<ServiceValues>({
-    resolver: zodResolver(serviceSchema),
+  const form = useForm<ServiceFormValues>({
+    resolver: zodResolver(serviceFormSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -247,8 +297,8 @@ function EditServiceDialog({
   onClose: () => void;
 }) {
   const updateService = useUpdateService();
-  const form = useForm<ServiceValues>({
-    resolver: zodResolver(serviceSchema),
+  const form = useForm<ServiceFormValues>({
+    resolver: zodResolver(serviceFormSchema),
     defaultValues: {
       name: "",
       description: "",

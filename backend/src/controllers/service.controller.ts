@@ -12,7 +12,8 @@ export const listServices = async (req: Request, res: Response, next: NextFuncti
 
 export const getService = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const service = await Service.findOne({ _id: req.params.id, isActive: true });
+    const filter = req.query.includeInactive === 'true' ? { _id: req.params.id } : { _id: req.params.id, isActive: true };
+    const service = await Service.findOne(filter);
     if (!service) throw new NotFoundError('Layanan tidak ditemukan');
     sendSuccess(res, 'Detail layanan berhasil diambil', service);
   } catch (error) { next(error); }

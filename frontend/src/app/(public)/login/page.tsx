@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,21 +21,15 @@ import { useLogin } from "@/hooks/use-mutations";
 import { useRedirectAuthenticated } from "@/hooks/use-redirect-authenticated";
 import { applyApiFieldErrors } from "@/lib/form-errors";
 import { homeForRole } from "@/lib/roles";
-
-const loginSchema = z.object({
-  email: z.string().min(1, "Email wajib diisi").email("Format alamat email tidak valid"),
-  password: z.string().min(1, "Kata sandi wajib diisi"),
-});
-
-type LoginValues = z.infer<typeof loginSchema>;
+import { loginFormSchema, type LoginFormValues } from "@/lib/validations";
 
 export default function LoginPage() {
   const router = useRouter();
   const { redirecting } = useRedirectAuthenticated();
   const login = useLogin();
 
-  const form = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
     defaultValues: { email: "", password: "" },
   });
 

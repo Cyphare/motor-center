@@ -56,6 +56,9 @@ export default function OwnerLayout({
                   </Button>
                 </>
               )}
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/owner/profil">Profil</Link>
+              </Button>
               {user && (
                 <span className="hidden px-2 text-sm text-muted-foreground sm:inline">
                   {user.name}

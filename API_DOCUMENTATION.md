@@ -91,7 +91,7 @@ Memeriksa status operasional server backend dan status konektivitas basis data M
 ## 2. Autentikasi & Profil Pengguna (`/api/auth`)
 
 ### `POST /api/auth/register`
-Pendaftaran mandiri akun pelanggan baru.
+Pendaftaran mandiri akun pelanggan baru. Dilindungi oleh *rate limiter* autentikasi (`20` permintaan / `15` menit per IP).
 * **Hak Akses**: Publik.
 * **Request Body**:
 ```json
@@ -123,7 +123,7 @@ Pendaftaran mandiri akun pelanggan baru.
 ```
 
 ### `POST /api/auth/login`
-Autentikasi kredensial pengguna (email & password).
+Autentikasi kredensial pengguna (email & password). Dilindungi oleh *rate limiter* autentikasi (`20` permintaan / `15` menit per IP).
 * **Hak Akses**: Publik.
 * **Request Body**:
 ```json
@@ -167,6 +167,28 @@ Mengambil data profil pengguna yang sedang login.
     "phone": "081234567890",
     "isActive": true
   }
+}
+```
+
+### `PUT /api/auth/me`
+Memperbarui nama dan/atau nomor telepon profil pengguna yang sedang login.
+* **Hak Akses**: Semua peran yang terautentikasi (`Bearer Token`).
+* **Request Body**:
+```json
+{
+  "name": "Dimas Saputra Pratama",
+  "phone": "081298761235"
+}
+```
+
+### `PUT /api/auth/change-password`
+Mengganti kata sandi akun yang sedang login dan menaikkan `tokenVersion` pengguna sehingga seluruh token JWT sebelumnya langsung tidak berlaku (`401 Unauthorized`).
+* **Hak Akses**: Semua peran yang terautentikasi (`Bearer Token`).
+* **Request Body**:
+```json
+{
+  "oldPassword": "password123",
+  "newPassword": "newPassword456"
 }
 ```
 
@@ -230,12 +252,138 @@ Mengambil daftar mekanik aktif untuk *dropdown* penugasan servis.
 }
 ```
 
+### `GET /api/users`
+Mengambil daftar akun pengguna bengkel secara terpaginasi dengan filter peran, status akun, dan pencarian teks.
+* **Hak Akses**: `admin`, `pemilik`.
+* **Query opsional**:
+  * `page` (number, default: 1)
+  * `limit` (number, default: 10, max: 100)
+  * `role` (string: `admin`, `kasir`, `mekanik`, `pelanggan`, `pemilik`)
+  * `isActive` (boolean: `true`, `false`)
+  * `search` (string: mencocokkan nama, email, atau nomor telepon)
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Daftar pengguna berhasil diambil",
+  "data": [
+    {
+      "_id": "674a91b2c45e89a1b2c3d4e1",
+      "name": "Budi Santoso",
+      "email": "budi.mekanik@motorcenter.id",
+      "role": "mekanik",
+      "phone": "081234567892",
+      "isActive": true,
+      "createdAt": "2026-10-01T08:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1
+  }
+}
+```
+
+### `GET /api/users/:id`
+Mengambil detail profil akun pengguna berdasarkan ID dokumen MongoDB.
+* **Hak Akses**: `admin`, `pemilik`.
+* **Path Parameters**: `id` (hex string ObjectId).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Detail pengguna berhasil diambil",
+  "data": {
+    "_id": "674a91b2c45e89a1b2c3d4e1",
+    "name": "Budi Santoso",
+    "email": "budi.mekanik@motorcenter.id",
+    "role": "mekanik",
+    "phone": "081234567892",
+    "isActive": true,
+    "createdAt": "2026-10-01T08:00:00.000Z",
+    "updatedAt": "2026-10-01T08:00:00.000Z"
+  }
+}
+```
+
+### `PATCH /api/users/:id/status`
+Mengaktifkan atau menonaktifkan akun pengguna. Backend menolak penonaktifan akun milik sendiri maupun penonaktifan satu-satunya akun `admin` yang masih aktif (`400 Bad Request`).
+* **Hak Akses**: `admin`.
+
 ---
 
 ## 4. Tiket Servis, Alur Pengerjaan, & Stok (`/api/bookings`)
 
+### `GET /api/bookings`
+Mengambil daftar tiket servis terpaginasi yang otomatis dibatasi menurut peran pengguna.
+* **Query opsional**: `page`, `limit`, `status`, `bookingType`, `plateNumber`, `startDate` (`YYYY-MM-DD` WIB), `endDate` (`YYYY-MM-DD` WIB, inklusif sepanjang hari WIB `00:00:00`–`23:59:59.999` melalui batas `[startOfJakartaDay, nextJakartaDay)`).
+
+### `GET /api/bookings/:id`
+Mengambil informasi terperinci satu tiket servis lengkap dengan data relasi terpopulasi (`mechanicId`, `serviceId`, `customerId`).
+* **Hak Akses**:
+  * `admin`, `kasir`, `pemilik`: Bebas melihat seluruh tiket.
+  * `mekanik`: Hanya dapat melihat tiket yang ditugaskan kepadanya.
+  * `pelanggan`: Hanya dapat melihat tiket online miliknya sendiri.
+* **Path Parameters**: `id` (hex string ObjectId).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Detail tiket servis berhasil diambil",
+  "data": {
+    "_id": "674a93c1c45e89a1b2c3d4e7",
+    "bookingNumber": "MC-20261015-0001",
+    "bookingType": "online",
+    "customerName": "Dimas Anggara",
+    "customerPhone": "081299998888",
+    "plateNumber": "B 1234 XYZ",
+    "motorModel": "Honda Vario 160",
+    "complaint": "Tarikan awal bergetar dan rem depan kurang pakem",
+    "status": "Dikerjakan",
+    "serviceFee": 75000,
+    "partsTotalCost": 45000,
+    "grandTotal": 120000,
+    "mechanicNotes": "Roller CVT aus, kampas rem depan diganti",
+    "partsUsed": [
+      {
+        "_id": "674a95a1c45e89a1b2c3d4e9",
+        "partId": "674a94b1c45e89a1b2c3d4e8",
+        "partCode": "KAMPAS-VARIO",
+        "name": "Kampas Rem Depan Vario",
+        "quantity": 1,
+        "price": 45000,
+        "subtotal": 45000
+      }
+    ],
+    "mechanicId": {
+      "_id": "674a91b2c45e89a1b2c3d4e2",
+      "name": "Budi Santoso",
+      "phone": "081234567892",
+      "email": "budi.mekanik@motorcenter.id"
+    },
+    "serviceId": {
+      "_id": "674a90a1c45e89a1b2c3d4e0",
+      "name": "Servis Ringan & CVT",
+      "description": "Pembersihan CVT, cek kelistrikan, dan setel rem",
+      "estimatedPrice": 75000,
+      "estimatedDurationMinutes": 60
+    },
+    "customerId": {
+      "_id": "674a90b1c45e89a1b2c3d4e5",
+      "name": "Dimas Anggara",
+      "phone": "081299998888",
+      "email": "dimas.pelanggan@gmail.com"
+    },
+    "createdAt": "2026-10-15T02:00:00.000Z",
+    "updatedAt": "2026-10-15T03:30:00.000Z"
+  }
+}
+```
+
 ### `POST /api/bookings/online`
-Pelanggan terdaftar melakukan booking servis daring.
+Pelanggan terdaftar melakukan booking servis daring. Nomor tiket `MC-YYYYMMDD-XXXX` dialokasikan secara atomik melalui koleksi `Counter` dengan mekanisme *retry* otomatis terhadap benturan indeks unik.
 * **Hak Akses**: `pelanggan`.
 * **Request Body**:
 ```json
@@ -334,8 +482,8 @@ Menugaskan mekanik penanggung jawab ke tiket servis.
 ```
 
 ### `PUT /api/bookings/:id/status`
-Memperbarui status pengerjaan tiket servis secara bertahap (`Antre` $\rightarrow$ `Diperiksa` $\rightarrow$ `Dikerjakan` $\rightarrow$ `Selesai` $\rightarrow$ `Diambil`).
-* **Hak Akses**: `admin`, `kasir`, `mekanik` (khusus tiket tugasnya). Transisi ke `Diambil` hanya untuk `admin` dan `kasir`, karena menandai pembayaran dan serah motor.
+Memperbarui status pengerjaan tiket servis secara bertahap (`Antre` $\rightarrow$ `Diperiksa` $\rightarrow$ `Dikerjakan` $\rightarrow$ `Selesai` $\rightarrow$ `Diambil`, atau pembatalan `Antre` $\rightarrow$ `Dibatalkan`).
+* **Hak Akses**: `admin`, `kasir`, `mekanik` (khusus tiket tugasnya). Pembatalan tiket (`Dibatalkan`), pelunasan/serah-terima (`Diambil`), serta penetapan/perubahan `serviceFee` dibatasi hanya untuk `admin` dan `kasir` (`mekanik` mendapat `403 Forbidden`).
 * **Request Body**:
 ```json
 {
@@ -417,7 +565,261 @@ Membatalkan pemakaian suku cadang dari tiket servis. Pengembalian stok dan perub
 
 ---
 
-## 5. Laporan, Email, dan Faktur (Fase 5)
+---
+
+## 5. Katalog Suku Cadang (`/api/parts`)
+
+Manajemen inventaris suku cadang, stok gudang, dan ambang batas minimum (*min stock*).
+
+### `GET /api/parts`
+Mengambil daftar seluruh suku cadang aktif (atau seluruhnya termasuk nonaktif).
+* **Hak Akses**: `admin`, `kasir`, `mekanik`, `pemilik`.
+* **Query opsional**:
+  * `includeInactive` (boolean: `true` / `false`, hanya diizinkan untuk `admin`, `kasir`, `pemilik`).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Daftar suku cadang berhasil diambil",
+  "data": [
+    {
+      "_id": "674a94b1c45e89a1b2c3d4e8",
+      "code": "OLI-MPX2",
+      "name": "Oli Mesin MPX 2 0.8L",
+      "unit": "botol",
+      "price": 55000,
+      "stock": 48,
+      "minStock": 10,
+      "isActive": true
+    }
+  ]
+}
+```
+
+### `GET /api/parts/low-stock`
+Mengambil daftar suku cadang yang stoknya berada pada atau di bawah batas minimum (`stock <= minStock`). Digunakan untuk peringatan restok gudang.
+* **Hak Akses**: `admin`, `pemilik`.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Daftar stok rendah berhasil diambil",
+  "data": [
+    {
+      "_id": "674a94b1c45e89a1b2c3d4e9",
+      "code": "BUSI-CPR9",
+      "name": "Busi NGK CPR9EA-9",
+      "unit": "pcs",
+      "price": 28000,
+      "stock": 3,
+      "minStock": 10,
+      "isActive": true
+    }
+  ]
+}
+```
+
+### `GET /api/parts/:id`
+Mengambil detail satu suku cadang berdasarkan ID dokumen MongoDB.
+* **Hak Akses**: `admin`, `kasir`, `mekanik`, `pemilik`.
+* **Query opsional**: `includeInactive` (`true` / `false`, memerlukan hak akses staf).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Detail suku cadang berhasil diambil",
+  "data": {
+    "_id": "674a94b1c45e89a1b2c3d4e8",
+    "code": "OLI-MPX2",
+    "name": "Oli Mesin MPX 2 0.8L",
+    "unit": "botol",
+    "price": 55000,
+    "stock": 48,
+    "minStock": 10,
+    "isActive": true
+  }
+}
+```
+
+### `POST /api/parts`
+Menambahkan data suku cadang baru ke master inventaris.
+* **Hak Akses**: `admin`, `kasir`.
+* **Request Body**:
+```json
+{
+  "code": "OLI-MPX2",
+  "name": "Oli Mesin MPX 2 0.8L",
+  "unit": "botol",
+  "price": 55000,
+  "stock": 50,
+  "minStock": 10
+}
+```
+* **Sample Response (201 Created)**:
+```json
+{
+  "success": true,
+  "message": "Suku cadang berhasil dibuat",
+  "data": {
+    "_id": "674a94b1c45e89a1b2c3d4e8",
+    "code": "OLI-MPX2",
+    "name": "Oli Mesin MPX 2 0.8L",
+    "unit": "botol",
+    "price": 55000,
+    "stock": 50,
+    "minStock": 10,
+    "isActive": true
+  }
+}
+```
+
+### `PUT /api/parts/:id`
+Memperbarui informasi suku cadang (harga, nama, satuan, stok, atau batas minimum).
+* **Hak Akses**: `admin`, `kasir`.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Suku cadang berhasil diperbarui",
+  "data": {
+    "_id": "674a94b1c45e89a1b2c3d4e8",
+    "code": "OLI-MPX2",
+    "name": "Oli Mesin MPX 2 0.8L",
+    "unit": "botol",
+    "price": 58000,
+    "stock": 45,
+    "minStock": 10,
+    "isActive": true
+  }
+}
+```
+
+### `DELETE /api/parts/:id`
+Menonaktifkan suku cadang (*soft delete*) dengan mengubah `isActive: false` tanpa merusak riwayat transaksi servis masa lalu.
+* **Hak Akses**: `admin`, `kasir`.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Suku cadang berhasil dinonaktifkan",
+  "data": {
+    "_id": "674a94b1c45e89a1b2c3d4e8",
+    "code": "OLI-MPX2",
+    "isActive": false
+  }
+}
+```
+
+---
+
+## 6. Katalog Layanan Servis (`/api/services`)
+
+Master data jenis jasa dan paket servis yang ditawarkan oleh bengkel motor.
+
+### `GET /api/services`
+Mengambil daftar seluruh layanan servis aktif yang tersedia untuk booking online dan walk-in.
+* **Hak Akses**: Publik (Tanpa token).
+* **Query opsional**:
+  * `includeInactive` (boolean: `true` / `false`, memerlukan token `admin`, `kasir`, atau `pemilik`).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Daftar layanan berhasil diambil",
+  "data": [
+    {
+      "_id": "674a90a1c45e89a1b2c3d4e0",
+      "name": "Servis Lengkap Motor Matic",
+      "description": "Pembersihan injektor, CVT, ganti oli, dan pengecekan kelistrikan",
+      "estimatedPrice": 120000,
+      "estimatedDurationMinutes": 90,
+      "isActive": true
+    }
+  ]
+}
+```
+
+### `GET /api/services/:id`
+Mengambil informasi lengkap satu layanan servis berdasarkan ID dokumen.
+* **Hak Akses**: Publik (Tanpa token). Jika `includeInactive=true`, memerlukan token staf.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Detail layanan berhasil diambil",
+  "data": {
+    "_id": "674a90a1c45e89a1b2c3d4e0",
+    "name": "Servis Lengkap Motor Matic",
+    "description": "Pembersihan injektor, CVT, ganti oli, dan pengecekan kelistrikan",
+    "estimatedPrice": 120000,
+    "estimatedDurationMinutes": 90,
+    "isActive": true
+  }
+}
+```
+
+### `POST /api/services`
+Menambahkan paket layanan servis baru ke dalam sistem.
+* **Hak Akses**: `admin`, `kasir`.
+* **Request Body**:
+```json
+{
+  "name": "Servis Rutin Berkala",
+  "description": "Pengecekan standar 10 titik dan setel rem",
+  "estimatedPrice": 50000,
+  "estimatedDurationMinutes": 45
+}
+```
+* **Sample Response (201 Created)**:
+```json
+{
+  "success": true,
+  "message": "Layanan berhasil dibuat",
+  "data": {
+    "_id": "674a90a1c45e89a1b2c3d4e1",
+    "name": "Servis Rutin Berkala",
+    "description": "Pengecekan standar 10 titik dan setel rem",
+    "estimatedPrice": 50000,
+    "estimatedDurationMinutes": 45,
+    "isActive": true
+  }
+}
+```
+
+### `PUT /api/services/:id`
+Memperbarui informasi paket layanan servis.
+* **Hak Akses**: `admin`, `kasir`.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Layanan berhasil diperbarui",
+  "data": {
+    "_id": "674a90a1c45e89a1b2c3d4e1",
+    "name": "Servis Rutin Berkala Plus",
+    "estimatedPrice": 60000,
+    "isActive": true
+  }
+}
+```
+
+### `DELETE /api/services/:id`
+Menonaktifkan paket layanan (*soft delete*, `isActive: false`).
+* **Hak Akses**: `admin`, `kasir`.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Layanan berhasil dinonaktifkan",
+  "data": {
+    "_id": "674a90a1c45e89a1b2c3d4e1",
+    "name": "Servis Rutin Berkala Plus",
+    "isActive": false
+  }
+}
+```
+
+## 7. Laporan, Email, dan Faktur (Fase 5)
 
 Omzet dihitung hanya dari tiket berstatus `Diambil`, memakai `pickedUpAt` serta snapshot `serviceFee` dan `partsTotalCost`. Semua batas hari menggunakan `Asia/Jakarta` (WIB).
 
@@ -444,13 +846,14 @@ Booking online mengirim konfirmasi ke email akun pelanggan. Saat tiket online me
 
 ---
 
-## 6. Ringkasan Kode Galat HTTP (HTTP Error Codes)
+## 8. Ringkasan Kode Galat HTTP (HTTP Error Codes)
 
 | Status Code | Kondisi Pemicu | Format Response Galat |
 | :---: | :--- | :--- |
 | **`400 Bad Request`** | Input schema Zod tidak valid, transisi status servis melompat, atau stok gudang kurang | `{"success": false, "message": "...", "errors": [...]}` |
-| **`401 Unauthorized`** | Header Authorization tidak ada, format token salah, atau sesi JWT telah kedaluwarsa | `{"success": false, "message": "Akses ditolak: Autentikasi diperlukan"}` |
-| **`403 Forbidden`** | Peran (RBAC) tidak berhak (misal: Pelanggan panggil API Admin, atau Mekanik A ubah tiket Mekanik B) | `{"success": false, "message": "Akses ditolak: Peran tidak memiliki wewenang"}` |
+| **`401 Unauthorized`** | Header Authorization tidak ada, format token salah, atau sesi JWT telah kedaluwarsa / dicabut | `{"success": false, "message": "Akses ditolak: Autentikasi diperlukan"}` |
+| **`403 Forbidden`** | Peran (RBAC) tidak berhak (misal: Pelanggan panggil API Admin, atau Mekanik batalkan/ubah biaya jasa tiket) | `{"success": false, "message": "Akses ditolak: Peran tidak memiliki wewenang"}` |
 | **`404 Not Found`** | Rute endpoint tidak ada atau dokumen ID (user, booking, part) tidak ditemukan di database | `{"success": false, "message": "Data atau sumber daya tidak ditemukan"}` |
 | **`409 Conflict`** | Terjadi duplikasi data unik (misal: email atau kode part sudah pernah terdaftar di MongoDB) | `{"success": false, "message": "Data email sudah terdaftar"}` |
+| **`429 Too Many Requests`** | Batas *rate limit* IP terlampaui pada endpoint API umum atau autentikasi | `{"success": false, "message": "Terlalu banyak percobaan..."}` |
 | **`500 Internal Server Error`** | Galat sistem tak tertangani | `{"success": false, "message": "Terjadi kesalahan internal pada server"}` |

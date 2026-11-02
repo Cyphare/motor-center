@@ -45,7 +45,8 @@ import {
 } from "@/hooks/use-mutations";
 import { invoicePdfBlob } from "@/services/bookings";
 import { ApiRequestError } from "@/lib/api-client";
-import { canAssignMechanic, nextStatuses } from "@/lib/transitions";
+import { canAssignMechanic, nextStatusesForRole } from "@/lib/transitions";
+import { useAuthContext } from "@/lib/auth-context";
 import type { Booking, Mechanic, ServiceStatus } from "@/types/api";
 import { formatDateTime, formatRupiah } from "@/lib/format";
 
@@ -73,7 +74,7 @@ export default function StaffBookingDetailPage() {
     booking && PARTS_EDITABLE_STATUSES.includes(booking.status)
   );
   const { data: partsData } = useParts({}, partsEditable);
-  const parts = partsData?.data ?? [];
+  const parts = partsData ?? [];
 
   const { data: mechanicsData } = useMechanics();
   const mechanics = mechanicsData ?? [];
@@ -86,11 +87,15 @@ export default function StaffBookingDetailPage() {
   const [assignValue, setAssignValue] = React.useState("");
   const [downloading, setDownloading] = React.useState(false);
 
+  const { user } = useAuthContext();
   const mechanic = booking ? assignedMechanic(booking) : null;
 
   // admin/kasir get the full legal transition set, including
   // Antre->Dibatalkan and Selesai->Diambil (checkout).
-  const advanceOptions = booking ? nextStatuses(booking.status) : [];
+  const roleForTransition = user?.role === "admin" ? "admin" : "kasir";
+  const advanceOptions = booking
+    ? nextStatusesForRole(booking.status, roleForTransition)
+    : [];
 
   function handleAdvance(nextStatus: ServiceStatus) {
     if (!id || !booking) return;

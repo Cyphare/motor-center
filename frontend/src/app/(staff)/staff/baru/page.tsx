@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,43 +28,12 @@ import { useMechanics, useServices } from "@/hooks/use-queries";
 import { useCreateBooking } from "@/hooks/use-mutations";
 import { applyApiFieldErrors } from "@/lib/form-errors";
 import { formatRupiah } from "@/lib/format";
+import {
+  createWalkInBookingFormSchema,
+  type CreateWalkInBookingFormValues,
+} from "@/lib/validations";
 
 const NONE = "__none__";
-
-// Mirrors backend/src/validations/booking.validation.ts createWalkInBookingSchema.
-const createWalkInBookingSchema = z.object({
-  customerName: z
-    .string()
-    .min(2, "Nama pelanggan minimal 2 karakter")
-    .max(100, "Nama pelanggan maksimal 100 karakter"),
-  customerPhone: z
-    .string()
-    .min(8, "Nomor telepon minimal 8 karakter")
-    .max(20, "Nomor telepon maksimal 20 karakter"),
-  plateNumber: z
-    .string()
-    .min(3, "Nomor plat minimal 3 karakter")
-    .max(15, "Nomor plat maksimal 15 karakter"),
-  motorModel: z
-    .string()
-    .min(2, "Model motor minimal 2 karakter")
-    .max(50, "Model motor maksimal 50 karakter"),
-  complaint: z
-    .string()
-    .min(3, "Keluhan minimal 3 karakter")
-    .max(500, "Keluhan maksimal 500 karakter"),
-  serviceId: z.string().optional(),
-  mechanicId: z.string().optional(),
-  serviceFee: z
-    .string()
-    .optional()
-    .refine(
-      (value) => !value || Number(value) >= 0,
-      "Biaya jasa tidak boleh negatif"
-    ),
-});
-
-type CreateWalkInBookingValues = z.infer<typeof createWalkInBookingSchema>;
 
 const KNOWN_FIELDS = [
   "customerName",
@@ -83,11 +51,11 @@ export default function NewWalkInPage() {
   const createBooking = useCreateBooking();
   const { data: servicesData } = useServices();
   const { data: mechanicsData } = useMechanics();
-  const services = servicesData?.data ?? [];
+  const services = servicesData ?? [];
   const mechanics = mechanicsData ?? [];
 
-  const form = useForm<CreateWalkInBookingValues>({
-    resolver: zodResolver(createWalkInBookingSchema),
+  const form = useForm<CreateWalkInBookingFormValues>({
+    resolver: zodResolver(createWalkInBookingFormSchema),
     defaultValues: {
       customerName: "",
       customerPhone: "",

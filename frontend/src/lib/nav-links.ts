@@ -15,4 +15,5 @@ export const PELANGGAN_NAV_LINKS: NavLink[] = [
   { href: "/pelanggan", label: "Servis Saya" },
   { href: "/pelanggan/baru", label: "Pesan Servis" },
   { href: "/pelanggan/layanan", label: "Layanan" },
+  { href: "/pelanggan/profil", label: "Profil" },
 ];

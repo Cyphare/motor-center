@@ -1,4 +1,4 @@
-import type { ServiceStatus } from "@/types/api";
+import type { ServiceStatus, UserRole } from "@/types/api";
 import { ALLOWED_TRANSITIONS } from "@/types/api";
 
 /**
@@ -14,6 +14,30 @@ export function canTransition(from: ServiceStatus, to: ServiceStatus): boolean {
  */
 export function nextStatuses(from: ServiceStatus): ServiceStatus[] {
   return ALLOWED_TRANSITIONS[from] ?? [];
+}
+
+/**
+ * Role-scoped next statuses mirroring backend `updateStatus` authorization:
+ * - `admin` and `kasir` may execute any legal transition (including
+ *   `Antre -> Dibatalkan` and `Selesai -> Diambil`).
+ * - `mekanik` may only advance active work (`Diperiksa`, `Dikerjakan`,
+ *   `Selesai`) — cancellation (`Dibatalkan`) and checkout (`Diambil`) are
+ *   restricted to `admin`/`kasir`.
+ * - `pemilik` and `pelanggan` cannot update ticket statuses.
+ */
+export function nextStatusesForRole(
+  from: ServiceStatus,
+  role: UserRole
+): ServiceStatus[] {
+  if (role === "admin" || role === "kasir") {
+    return nextStatuses(from);
+  }
+  if (role === "mekanik") {
+    return nextStatuses(from).filter(
+      (status) => status !== "Diambil" && status !== "Dibatalkan"
+    );
+  }
+  return [];
 }
 
 /**

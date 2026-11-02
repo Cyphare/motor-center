@@ -33,7 +33,7 @@ import {
   useRemovePart,
   useUpdateStatus,
 } from "@/hooks/use-mutations";
-import { nextStatuses } from "@/lib/transitions";
+import { nextStatusesForRole } from "@/lib/transitions";
 import type { ServiceStatus } from "@/types/api";
 import { formatRupiah } from "@/lib/format";
 
@@ -52,33 +52,29 @@ export default function MekanikBookingDetailPage() {
     booking && PARTS_EDITABLE_STATUSES.includes(booking.status)
   );
   const { data: partsData } = useParts({}, partsEditable);
-  const parts = partsData?.data ?? [];
+  const parts = partsData ?? [];
 
   const [notes, setNotes] = React.useState("");
-  const [serviceFee, setServiceFee] = React.useState("");
   const [selectedPart, setSelectedPart] = React.useState("");
   const [quantity, setQuantity] = React.useState("1");
 
-  // A mekanik may only advance along the legal flow and must never set
-  // Diambil (admin/kasir only). We mirror the backend transition map and
-  // strip Diambil defensively even though it never appears for these states.
+  // A mekanik may only advance active work (Diperiksa, Dikerjakan, Selesai);
+  // cancellation (Dibatalkan), checkout (Diambil), and serviceFee edits belong
+  // strictly to admin/kasir.
   const advanceOptions = booking
-    ? nextStatuses(booking.status).filter((status) => status !== "Diambil")
+    ? nextStatusesForRole(booking.status, "mekanik")
     : [];
 
   function handleAdvance(nextStatus: ServiceStatus) {
     if (!id) return;
-    const fee = serviceFee.trim();
     updateStatus.mutate({
       id,
       data: {
         status: nextStatus,
         ...(notes.trim() ? { mechanicNotes: notes.trim() } : {}),
-        ...(fee !== "" ? { serviceFee: Number(fee) } : {}),
       },
     });
     setNotes("");
-    setServiceFee("");
   }
 
   function handleAddPart() {
@@ -162,7 +158,7 @@ export default function MekanikBookingDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">Perbarui Status</CardTitle>
             <CardDescription>
-              Pilih status berikutnya yang diizinkan untuk tiket ini.
+              Pilih status pengerjaan berikutnya yang diizinkan untuk tiket ini.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -181,28 +177,14 @@ export default function MekanikBookingDetailPage() {
                     placeholder="Catatan pengerjaan"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="serviceFee">Biaya jasa (opsional)</Label>
-                  <Input
-                    id="serviceFee"
-                    type="number"
-                    min={0}
-                    value={serviceFee}
-                    onChange={(event) => setServiceFee(event.target.value)}
-                    placeholder="0"
-                  />
-                </div>
                 <div className="flex flex-wrap gap-2">
                   {advanceOptions.map((status) => (
                     <Button
                       key={status}
                       onClick={() => handleAdvance(status)}
                       disabled={updateStatus.isPending}
-                      variant={status === "Dibatalkan" ? "outline" : "default"}
                     >
-                      {status === "Dibatalkan"
-                        ? "Batalkan Tiket"
-                        : `Ubah ke ${status}`}
+                      {`Ubah ke ${status}`}
                     </Button>
                   ))}
                 </div>

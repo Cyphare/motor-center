@@ -5,7 +5,6 @@ import { generateToken } from '../utils/jwt';
 import { sendCreated, sendSuccess } from '../utils/response';
 import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from '../utils/appError';
 
-
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { name, email, password, phone } = req.body;
@@ -28,6 +27,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       name: user.name,
       email: user.email,
       role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
     });
 
     sendCreated(res, 'Pendaftaran akun berhasil', {
@@ -62,6 +62,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       name: user.name,
       email: user.email,
       role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
     });
 
     sendSuccess(res, 'Login berhasil', {
@@ -103,8 +104,8 @@ export const updateMe = async (req: Request, res: Response, next: NextFunction):
       throw new NotFoundError('Profil pengguna tidak ditemukan');
     }
 
-    if (name) user.name = name;
-    if (phone) user.phone = phone;
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
 
     await user.save();
 
@@ -137,6 +138,7 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     }
 
     user.password = newPassword;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();
 
     sendSuccess(res, 'Kata sandi berhasil diperbarui. Silakan login kembali dengan sandi baru.');

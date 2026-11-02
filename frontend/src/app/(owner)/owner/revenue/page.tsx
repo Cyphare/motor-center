@@ -17,24 +17,7 @@ import { useRevenue } from "@/hooks/use-queries";
 import type { RevenueQuery } from "@/services/reports";
 import type { RevenueDay } from "@/types/api";
 import { formatDate, formatRupiah } from "@/lib/format";
-
-/**
- * Mirrors backend/src/validations/report.validation.ts: startDate and endDate
- * are required together (both-or-neither) and the range must not be reversed.
- * Returns an error message, or null when the range is valid.
- */
-function validateRange(startDate: string, endDate: string): string | null {
-  const hasStart = startDate.trim() !== "";
-  const hasEnd = endDate.trim() !== "";
-  if (!hasStart && !hasEnd) return null; // both empty -> server default range
-  if (hasStart !== hasEnd) {
-    return "Tanggal mulai dan tanggal akhir wajib diisi bersama.";
-  }
-  if (startDate > endDate) {
-    return "Rentang tanggal tidak boleh terbalik (mulai harus sebelum akhir).";
-  }
-  return null;
-}
+import { validateDateRange } from "@/lib/validations";
 
 export default function OwnerRevenuePage() {
   const [startDate, setStartDate] = React.useState("");
@@ -46,7 +29,9 @@ export default function OwnerRevenuePage() {
   const { data, isLoading, isError, error, refetch } = useRevenue(appliedQuery);
 
   function handleApply() {
-    const validationError = validateRange(startDate, endDate);
+    const validationError = validateDateRange(startDate, endDate, {
+      requireBoth: true,
+    });
     setFormError(validationError);
     if (validationError) return;
     setAppliedQuery(

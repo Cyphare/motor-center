@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { AlertTriangle, Pencil, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,38 +21,20 @@ import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useParts } from "@/hooks/use-queries";
-import { useCreatePart, useUpdatePart } from "@/hooks/use-mutations";
+import {
+  useCreatePart,
+  useDeletePart,
+  useUpdatePart,
+} from "@/hooks/use-mutations";
 import { applyApiFieldErrors } from "@/lib/form-errors";
 import { formatRupiah } from "@/lib/format";
+import { partFormSchema, type PartFormValues } from "@/lib/validations";
 import type { Part } from "@/types/api";
 
-// Non-negative integer entered as a string (number <input>), validated and
-// later converted to a number on submit. Keeps the react-hook-form field type
-// a plain string, matching the project's existing form pattern.
-const intString = (label: string) =>
-  z
-    .string()
-    .min(1, `${label} wajib diisi`)
-    .refine((value) => {
-      const n = Number(value);
-      return Number.isInteger(n) && n >= 0;
-    }, `${label} harus bilangan bulat tidak negatif`);
-
-// Mirrors backend/src/validations/catalog.validation.ts part schema.
-const partSchema = z.object({
-  code: z.string().trim().min(1, "Kode wajib diisi").max(50),
-  name: z.string().trim().min(1, "Nama wajib diisi").max(100),
-  stock: intString("Stok"),
-  minStock: intString("Stok minimal"),
-  price: intString("Harga"),
-  unit: z.string().trim().min(1, "Satuan wajib diisi").max(30),
-});
-
-type PartValues = z.infer<typeof partSchema>;
-
-function toPartPayload(values: PartValues) {
+function toPartPayload(values: PartFormValues) {
   return {
     code: values.code.trim(),
     name: values.name.trim(),
@@ -81,16 +62,35 @@ export default function StaffPartsPage() {
   const { data, isLoading, isError, error, refetch } = useParts({
     includeInactive: true,
   });
-  const parts = data?.data ?? [];
+  const parts = data ?? [];
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Part | null>(null);
+  const [toggleTarget, setToggleTarget] = React.useState<Part | null>(null);
+
+  const deletePart = useDeletePart();
+  const reactivatePart = useUpdatePart();
+  const togglePending = deletePart.isPending || reactivatePart.isPending;
+
+  function handleConfirmToggle() {
+    if (!toggleTarget) return;
+    if (toggleTarget.isActive) {
+      deletePart.mutate(toggleTarget._id, {
+        onSuccess: () => setToggleTarget(null),
+      });
+    } else {
+      reactivatePart.mutate(
+        { id: toggleTarget._id, data: { isActive: true } },
+        { onSuccess: () => setToggleTarget(null) }
+      );
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Suku Cadang"
-        description="Kelola stok dan harga suku cadang bengkel."
+        description="Kelola stok, harga, dan status aktif suku cadang bengkel."
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
@@ -101,7 +101,7 @@ export default function StaffPartsPage() {
 
       <div className="mt-8">
         {isLoading ? (
-          <TableSkeleton rows={5} columns={5} />
+          <TableSkeleton rows={5} columns={6} />
         ) : isError ? (
           <ErrorState
             message={error instanceof Error ? error.message : undefined}
@@ -129,7 +129,7 @@ export default function StaffPartsPage() {
                 cell: (part) => (
                   <span className="flex items-center gap-2">
                     {part.stock} {part.unit}
-                    {isLowStock(part) && (
+                    {part.isActive && isLowStock(part) && (
                       <Badge
                         variant="outline"
                         className="border-red-200 bg-red-50 text-red-700"
@@ -152,18 +152,47 @@ export default function StaffPartsPage() {
                 cell: (part) => formatRupiah(part.price),
               },
               {
+                key: "status",
+                header: "Status",
+                cell: (part) =>
+                  part.isActive ? (
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                    >
+                      Aktif
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="border-slate-200 bg-slate-100 text-slate-600"
+                    >
+                      Nonaktif
+                    </Badge>
+                  ),
+              },
+              {
                 key: "actions",
                 header: "",
                 className: "text-right",
                 cell: (part) => (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditing(part)}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Ubah
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditing(part)}
+                    >
+                      <Pencil className="mr-1 h-4 w-4" />
+                      Ubah
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setToggleTarget(part)}
+                    >
+                      {part.isActive ? "Nonaktifkan" : "Aktifkan"}
+                    </Button>
+                  </div>
                 ),
               },
             ]}
@@ -174,9 +203,26 @@ export default function StaffPartsPage() {
       </div>
 
       <CreatePartDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <EditPartDialog
-        part={editing}
-        onClose={() => setEditing(null)}
+      <EditPartDialog part={editing} onClose={() => setEditing(null)} />
+      <ConfirmDialog
+        open={Boolean(toggleTarget)}
+        onOpenChange={(value) => !value && setToggleTarget(null)}
+        title={
+          toggleTarget?.isActive
+            ? "Nonaktifkan suku cadang?"
+            : "Aktifkan suku cadang?"
+        }
+        description={
+          toggleTarget
+            ? toggleTarget.isActive
+              ? `${toggleTarget.name} (${toggleTarget.code}) akan disembunyikan dari pilihan suku cadang tiket baru.`
+              : `${toggleTarget.name} (${toggleTarget.code}) akan kembali tersedia di katalog suku cadang aktif.`
+            : undefined
+        }
+        confirmLabel={toggleTarget?.isActive ? "Nonaktifkan" : "Aktifkan"}
+        destructive={toggleTarget?.isActive ?? false}
+        loading={togglePending}
+        onConfirm={handleConfirmToggle}
       />
     </main>
   );
@@ -190,8 +236,8 @@ function CreatePartDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const createPart = useCreatePart();
-  const form = useForm<PartValues>({
-    resolver: zodResolver(partSchema),
+  const form = useForm<PartFormValues>({
+    resolver: zodResolver(partFormSchema),
     defaultValues: {
       code: "",
       name: "",
@@ -264,8 +310,8 @@ function EditPartDialog({
   onClose: () => void;
 }) {
   const updatePart = useUpdatePart();
-  const form = useForm<PartValues>({
-    resolver: zodResolver(partSchema),
+  const form = useForm<PartFormValues>({
+    resolver: zodResolver(partFormSchema),
     defaultValues: {
       code: "",
       name: "",

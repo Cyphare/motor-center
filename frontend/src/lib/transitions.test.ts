@@ -6,6 +6,7 @@ import {
   canTransition,
   isTerminalStatus,
   nextStatuses,
+  nextStatusesForRole,
 } from "@/lib/transitions";
 
 describe("ALLOWED_TRANSITIONS", () => {
@@ -52,6 +53,32 @@ describe("nextStatuses / isTerminalStatus", () => {
     expect(isTerminalStatus("Diambil")).toBe(true);
     expect(isTerminalStatus("Dibatalkan")).toBe(true);
     expect(isTerminalStatus("Antre")).toBe(false);
+  });
+});
+
+describe("nextStatusesForRole", () => {
+  it("grants admin and kasir every legal transition including cancellation and checkout", () => {
+    for (const role of ["admin", "kasir"] as const) {
+      expect(nextStatusesForRole("Antre", role)).toEqual([
+        "Diperiksa",
+        "Dibatalkan",
+      ]);
+      expect(nextStatusesForRole("Selesai", role)).toEqual(["Diambil"]);
+    }
+  });
+
+  it("restricts mekanik to sequential active-work transitions (no Dibatalkan or Diambil)", () => {
+    expect(nextStatusesForRole("Antre", "mekanik")).toEqual(["Diperiksa"]);
+    expect(nextStatusesForRole("Diperiksa", "mekanik")).toEqual(["Dikerjakan"]);
+    expect(nextStatusesForRole("Dikerjakan", "mekanik")).toEqual(["Selesai"]);
+    expect(nextStatusesForRole("Selesai", "mekanik")).toEqual([]);
+    expect(nextStatusesForRole("Diambil", "mekanik")).toEqual([]);
+    expect(nextStatusesForRole("Dibatalkan", "mekanik")).toEqual([]);
+  });
+
+  it("disallows status updates for pemilik and pelanggan", () => {
+    expect(nextStatusesForRole("Antre", "pemilik")).toEqual([]);
+    expect(nextStatusesForRole("Antre", "pelanggan")).toEqual([]);
   });
 });
 

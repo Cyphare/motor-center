@@ -32,7 +32,7 @@ function formatDuration(minutes: number): string {
  */
 export function ServiceCatalog() {
   const { data, isLoading, isError, error, refetch } = useServices();
-  const services = data?.data ?? [];
+  const services = data ?? [];
 
   if (isLoading) {
     return (

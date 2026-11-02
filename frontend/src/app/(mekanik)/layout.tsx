@@ -37,6 +37,9 @@ export default function MekanikLayout({
               <Button asChild variant="ghost" size="sm">
                 <Link href="/mekanik">Tiket Saya</Link>
               </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/mekanik/profil">Profil</Link>
+              </Button>
               {user && (
                 <span className="hidden text-sm text-muted-foreground sm:inline">
                   {user.name}

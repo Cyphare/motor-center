@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,19 +20,10 @@ import { LoadingState } from "@/components/loading-state";
 import { useRegister } from "@/hooks/use-mutations";
 import { useRedirectAuthenticated } from "@/hooks/use-redirect-authenticated";
 import { applyApiFieldErrors } from "@/lib/form-errors";
-
-// Mirrors backend/src/validations/auth.validation.ts registerSchema.
-const registerSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Nama minimal 2 karakter")
-    .max(100, "Nama maksimal 100 karakter"),
-  email: z.string().min(1, "Email wajib diisi").email("Format alamat email tidak valid"),
-  password: z.string().min(6, "Kata sandi minimal 6 karakter"),
-  phone: z.string().min(8, "Nomor telepon minimal 8 digit"),
-});
-
-type RegisterValues = z.infer<typeof registerSchema>;
+import {
+  registerFormSchema,
+  type RegisterFormValues,
+} from "@/lib/validations";
 
 const KNOWN_FIELDS = ["name", "email", "password", "phone"] as const;
 
@@ -42,8 +32,8 @@ export default function RegisterPage() {
   const { redirecting } = useRedirectAuthenticated();
   const register = useRegister();
 
-  const form = useForm<RegisterValues>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerFormSchema),
     defaultValues: { name: "", email: "", password: "", phone: "" },
   });
 

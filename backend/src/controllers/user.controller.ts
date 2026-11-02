@@ -3,6 +3,7 @@ import { User } from '../models/user.model';
 import { USER_ROLES } from '../constants';
 import { sendCreated, sendPaginated, sendSuccess } from '../utils/response';
 import { BadRequestError, ConflictError, NotFoundError } from '../utils/appError';
+import { escapeRegex } from '../utils/jakartaDate';
 
 export const createStaff = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -44,8 +45,8 @@ export const getMechanics = async (_req: Request, res: Response, next: NextFunct
 
 export const getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
     const filter: any = {};
@@ -59,7 +60,7 @@ export const getAllUsers = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (req.query.search) {
-      const searchRegex = new RegExp(req.query.search as string, 'i');
+      const searchRegex = new RegExp(escapeRegex(String(req.query.search)), 'i');
       filter.$or = [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }];
     }
 
@@ -104,6 +105,20 @@ export const toggleUserStatus = async (req: Request, res: Response, next: NextFu
     const user = await User.findById(targetUserId);
     if (!user) {
       throw new NotFoundError('Pengguna tidak ditemukan');
+    }
+
+    // Prevent disabling the last remaining active admin account
+    if (!isActive && user.role === USER_ROLES.ADMIN && user.isActive) {
+      const remainingActiveAdmins = await User.countDocuments({
+        role: USER_ROLES.ADMIN,
+        isActive: true,
+        _id: { $ne: user._id },
+      });
+      if (remainingActiveAdmins === 0) {
+        throw new BadRequestError(
+          'Tidak dapat menonaktifkan satu-satunya akun admin yang masih aktif'
+        );
+      }
     }
 
     user.isActive = isActive;

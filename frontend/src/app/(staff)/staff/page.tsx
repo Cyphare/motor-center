@@ -29,6 +29,7 @@ import { useBookings, useMechanics } from "@/hooks/use-queries";
 import type { BookingListQuery } from "@/services/bookings";
 import type { BookingType, ServiceStatus } from "@/types/api";
 import { formatDate } from "@/lib/format";
+import { validateDateRange } from "@/lib/validations";
 
 const STATUSES: ServiceStatus[] = [
   "Antre",
@@ -59,18 +60,34 @@ export default function StaffQueuePage() {
   const { data: mechanicsData } = useMechanics();
   const mechanics = mechanicsData ?? [];
 
+  const rangeError = validateDateRange(startDate, endDate);
+
   const query: BookingListQuery = React.useMemo(() => {
     const q: BookingListQuery = { page, limit: PAGE_SIZE };
     if (status !== ANY) q.status = status as ServiceStatus;
     if (bookingType !== ANY) q.bookingType = bookingType as BookingType;
     if (mechanicId !== ANY) q.mechanicId = mechanicId;
     if (plateNumber.trim()) q.plateNumber = plateNumber.trim();
-    if (startDate) q.startDate = startDate;
-    if (endDate) q.endDate = endDate;
+    if (!rangeError) {
+      if (startDate) q.startDate = startDate;
+      if (endDate) q.endDate = endDate;
+    }
     return q;
-  }, [page, status, bookingType, mechanicId, plateNumber, startDate, endDate]);
+  }, [
+    page,
+    status,
+    bookingType,
+    mechanicId,
+    plateNumber,
+    startDate,
+    endDate,
+    rangeError,
+  ]);
 
-  const { data, isLoading, isError, error, refetch } = useBookings(query);
+  const { data, isLoading, isError, error, refetch } = useBookings(
+    query,
+    !rangeError
+  );
   const bookings = data?.data ?? [];
   const pagination = data?.pagination;
 
@@ -86,7 +103,7 @@ export default function StaffQueuePage() {
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
       <PageHeader
         title="Antrean Servis"
-        description="Semua tiket servis bengkel. Gunakan filter untuk mempersempit."
+        description="Semua tiket servis bengkel. Gunakan filter untuk mempersempit (zona waktu WIB)."
         actions={
           <Button asChild size="sm">
             <Link href="/staff/baru">
@@ -169,6 +186,7 @@ export default function StaffQueuePage() {
             <Input
               id="startDate"
               type="date"
+              max={endDate || undefined}
               value={startDate}
               onChange={(event) =>
                 resetToFirstPage(setStartDate)(event.target.value)
@@ -180,6 +198,7 @@ export default function StaffQueuePage() {
             <Input
               id="endDate"
               type="date"
+              min={startDate || undefined}
               value={endDate}
               onChange={(event) =>
                 resetToFirstPage(setEndDate)(event.target.value)
@@ -189,8 +208,20 @@ export default function StaffQueuePage() {
         </CardContent>
       </Card>
 
+      {rangeError && (
+        <p className="mt-3 text-sm text-red-600" role="alert">
+          {rangeError}
+        </p>
+      )}
+
       <div className="mt-6">
-        {isLoading ? (
+        {rangeError ? (
+          <EmptyState
+            icon={<Wrench className="h-8 w-8" />}
+            title="Rentang tanggal tidak valid"
+            description={rangeError}
+          />
+        ) : isLoading ? (
           <TableSkeleton rows={5} columns={1} />
         ) : isError ? (
           <ErrorState
@@ -228,7 +259,9 @@ export default function StaffQueuePage() {
                       <span className="rounded border px-2 py-0.5 text-xs uppercase">
                         {booking.bookingType}
                       </span>
-                      <span>{formatDate(booking.createdAt)}</span>
+                      <span>
+                        {formatDate(booking.serviceDate ?? booking.createdAt)}
+                      </span>
                     </span>
                   </CardContent>
                 </Card>
@@ -238,7 +271,7 @@ export default function StaffQueuePage() {
         )}
       </div>
 
-      {pagination && pagination.totalPages > 1 && (
+      {!rangeError && pagination && pagination.totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Halaman {pagination.page} dari {pagination.totalPages} &middot;{" "}

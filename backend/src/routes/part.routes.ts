@@ -17,7 +17,10 @@ router.get('/', readers, validate(catalogQuerySchema), (req, res, next) => {
   next();
 }, listParts);
 router.get('/low-stock', authorizeRoles(USER_ROLES.ADMIN, USER_ROLES.PEMILIK), listLowStock);
-router.get('/:id', readers, getPart);
+router.get('/:id', readers, (req, res, next) => {
+  if (req.query.includeInactive === 'true') return inactiveReaders(req, res, next);
+  next();
+}, getPart);
 router.post('/', staff, validate(createPartSchema), createPart);
 router.put('/:id', staff, validate(updatePartSchema), updatePart);
 router.delete('/:id', staff, deletePart);

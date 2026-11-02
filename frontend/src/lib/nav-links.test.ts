@@ -15,4 +15,10 @@ describe("PELANGGAN_NAV_LINKS", () => {
     expect(layanan?.href).toBe("/pelanggan/layanan");
     expect(layanan?.href).not.toBe("/catalog");
   });
+
+  it("exposes the Profil link inside the pelanggan area", () => {
+    const profil = PELANGGAN_NAV_LINKS.find((l) => l.label === "Profil");
+    expect(profil).toBeDefined();
+    expect(profil?.href).toBe("/pelanggan/profil");
+  });
 });

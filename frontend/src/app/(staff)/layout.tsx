@@ -51,6 +51,9 @@ export default function StaffLayout({
                   <Link href="/owner">Laporan</Link>
                 </Button>
               )}
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/staff/profil">Profil</Link>
+              </Button>
               {user && (
                 <span className="hidden px-2 text-sm text-muted-foreground sm:inline">
                   {user.name}

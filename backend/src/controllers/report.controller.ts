@@ -3,10 +3,8 @@ import { Booking } from '../models/booking.model';
 import { Part } from '../models/part.model';
 import { SERVICE_STATUS } from '../constants';
 import { sendSuccess } from '../utils/response';
-import { jakartaDate } from '../utils/jakartaDate';
+import { jakartaDate, nextJakartaDay, startOfJakartaDay } from '../utils/jakartaDate';
 
-const startOfJakartaDay = (day: string): Date => new Date(`${day}T00:00:00+07:00`);
-const nextJakartaDay = (day: string): Date => new Date(startOfJakartaDay(day).getTime() + 86400000);
 const pickedUp = (start: string, end: string) => ({
   status: SERVICE_STATUS.DIAMBIL,
   pickedUpAt: { $gte: startOfJakartaDay(start), $lt: nextJakartaDay(end) },

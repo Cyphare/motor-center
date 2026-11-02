@@ -1,10 +1,8 @@
-import { request, requestPaginated } from "@/lib/api-client";
-import type { PaginationMeta, Service } from "@/types/api";
+import { request } from "@/lib/api-client";
+import type { Service } from "@/types/api";
 
 export interface ServiceListQuery {
   includeInactive?: boolean;
-  page?: number;
-  limit?: number;
 }
 
 export interface CreateServicePayload {
@@ -17,10 +15,8 @@ export interface CreateServicePayload {
 
 export type UpdateServicePayload = Partial<CreateServicePayload>;
 
-export function list(
-  query: ServiceListQuery = {}
-): Promise<{ data: Service[]; pagination?: PaginationMeta }> {
-  return requestPaginated<Service[]>({
+export function list(query: ServiceListQuery = {}): Promise<Service[]> {
+  return request<Service[]>({
     method: "GET",
     url: "/services",
     params: query,
@@ -46,6 +42,6 @@ export function update(
   });
 }
 
-export function remove(id: string): Promise<unknown> {
-  return request<unknown>({ method: "DELETE", url: `/services/${id}` });
+export function remove(id: string): Promise<Service> {
+  return request<Service>({ method: "DELETE", url: `/services/${id}` });
 }

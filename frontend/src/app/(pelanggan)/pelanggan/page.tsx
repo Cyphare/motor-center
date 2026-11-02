@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { Plus, Wrench } from "lucide-react";
 
@@ -19,10 +20,16 @@ import { useBookings } from "@/hooks/use-queries";
 import { formatDate, formatRupiah } from "@/lib/format";
 
 export default function PelangganDashboardPage() {
+  const [page, setPage] = React.useState(1);
+
   // The backend auto-scopes GET /bookings to the authenticated pelanggan's own
-  // tickets, so no explicit filter is needed here.
-  const { data, isLoading, isError, error, refetch } = useBookings();
+  // tickets.
+  const { data, isLoading, isError, error, refetch } = useBookings({
+    page,
+    limit: 10,
+  });
   const bookings = data?.data ?? [];
+  const pagination = data?.pagination;
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
@@ -91,6 +98,33 @@ export default function PelangganDashboardPage() {
           </div>
         )}
       </div>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Halaman {pagination.page} dari {pagination.totalPages} &middot;{" "}
+            {pagination.total} riwayat servis
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagination.page <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Sebelumnya
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagination.page >= pagination.totalPages}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              Berikutnya
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

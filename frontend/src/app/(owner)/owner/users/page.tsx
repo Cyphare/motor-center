@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,13 +37,18 @@ import { TableSkeleton } from "@/components/loading-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { RoleGuard } from "@/components/guards/role-guard";
+import { useAuth } from "@/hooks/use-auth";
 import { useUsers } from "@/hooks/use-queries";
 import { useCreateStaff, useToggleUserStatus } from "@/hooks/use-mutations";
 import { applyApiFieldErrors } from "@/lib/form-errors";
+import {
+  createStaffFormSchema,
+  STAFF_ROLES,
+  type CreateStaffFormValues,
+} from "@/lib/validations";
 import type { UserListQuery } from "@/services/users";
 import type { User, UserRole } from "@/types/api";
 
-const STAFF_ROLES = ["admin", "kasir", "mekanik", "pemilik"] as const;
 const FILTER_ROLES: UserRole[] = [
   "admin",
   "kasir",
@@ -55,19 +59,6 @@ const FILTER_ROLES: UserRole[] = [
 
 const ANY = "__any__";
 const PAGE_SIZE = 10;
-
-// Mirrors backend/src/validations/user.validation.ts createStaffSchema.
-const createStaffSchema = z.object({
-  name: z.string().trim().min(2, "Nama minimal 2 karakter").max(100),
-  email: z.string().trim().email("Format alamat email tidak valid"),
-  password: z.string().min(6, "Kata sandi minimal 6 karakter"),
-  role: z.enum(STAFF_ROLES, {
-    message: "Peran harus salah satu dari: admin, kasir, mekanik, pemilik",
-  }),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter"),
-});
-
-type CreateStaffValues = z.infer<typeof createStaffSchema>;
 
 const KNOWN_FIELDS = ["name", "email", "password", "role", "phone"] as const;
 
@@ -91,6 +82,7 @@ export default function OwnerUsersPage() {
 }
 
 function UsersManagement() {
+  const { user: currentUser } = useAuth();
   const [role, setRole] = React.useState<string>(ANY);
   const [isActive, setIsActive] = React.useState<string>(ANY);
   const [search, setSearch] = React.useState("");
@@ -121,6 +113,10 @@ function UsersManagement() {
 
   function handleConfirmToggle() {
     if (!toggleTarget) return;
+    if (toggleTarget._id === currentUser?._id && toggleTarget.isActive) {
+      setToggleTarget(null);
+      return;
+    }
     toggleStatus.mutate(
       { id: toggleTarget._id, isActive: !toggleTarget.isActive },
       { onSuccess: () => setToggleTarget(null) }
@@ -243,15 +239,28 @@ function UsersManagement() {
                 key: "actions",
                 header: "",
                 className: "text-right",
-                cell: (user) => (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setToggleTarget(user)}
-                  >
-                    {user.isActive ? "Nonaktifkan" : "Aktifkan"}
-                  </Button>
-                ),
+                cell: (user) => {
+                  const isSelfActive =
+                    user._id === currentUser?._id && user.isActive;
+                  const selfTooltip = isSelfActive
+                    ? "Anda tidak dapat menonaktifkan akun Anda sendiri"
+                    : undefined;
+                  return (
+                    <span className="inline-block" title={selfTooltip}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isSelfActive}
+                        title={selfTooltip}
+                        onClick={() => {
+                          if (!isSelfActive) setToggleTarget(user);
+                        }}
+                      >
+                        {user.isActive ? "Nonaktifkan" : "Aktifkan"}
+                      </Button>
+                    </span>
+                  );
+                },
               },
             ]}
             rows={users}
@@ -320,8 +329,8 @@ function CreateStaffDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const createStaff = useCreateStaff();
-  const form = useForm<CreateStaffValues>({
-    resolver: zodResolver(createStaffSchema),
+  const form = useForm<CreateStaffFormValues>({
+    resolver: zodResolver(createStaffFormSchema),
     defaultValues: {
       name: "",
       email: "",

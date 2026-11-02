@@ -19,7 +19,8 @@ export const listLowStock = async (_req: Request, res: Response, next: NextFunct
 
 export const getPart = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const part = await Part.findOne({ _id: req.params.id, isActive: true });
+    const filter = req.query.includeInactive === 'true' ? { _id: req.params.id } : { _id: req.params.id, isActive: true };
+    const part = await Part.findOne(filter);
     if (!part) throw new NotFoundError('Suku cadang tidak ditemukan');
     sendSuccess(res, 'Detail suku cadang berhasil diambil', part);
   } catch (error) { next(error); }

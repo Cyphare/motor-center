@@ -42,8 +42,9 @@ Traditional motorcycle workshops handle dozens of vehicles daily using paper que
 | **Runtime** | **Node.js (v24.x / >=20.x)** | V8 JavaScript runtime |
 | **Database** | **MongoDB Atlas & Mongoose (v8.x)** | Cloud NoSQL database with replica set failover |
 | **Password Security** | **bcryptjs** | Salt rounds 10 one-way hashing (Rubric BE4) |
-| **API Auth & RBAC** | **JSON Web Tokens (JWT)** | Stateless Bearer token authorization with 24-hour expiry (Rubric BE5) |
-| **Request Validation** | **Zod (v3.x)** | Schema-based validation for body, query params, and URL params |
+| **API Auth & RBAC** | **JSON Web Tokens (JWT)** | Stateless Bearer token authorization with `tokenVersion` rotation (Rubric BE5) |
+| **HTTP Security** | **Helmet & express-rate-limit** | Security headers and IP rate limiting on API & authentication routes |
+| **Request Validation** | **Zod (v4.x)** | Schema-based validation for body, query params, and URL params (aligned across backend & frontend) |
 | **PDF Invoicing** | **PDFKit** | Dynamic generation of itemized receipt invoices (Rubric G6) |
 | **Email Notifications**| **Nodemailer** | Service completion alerts and booking notifications (Rubric G6) |
 | **Package Manager** | **`pnpm` (v10.x)** | Fast, disk-efficient package management |
@@ -73,13 +74,15 @@ bengkel-motor-6/
 │   │   │   ├── auth.middleware.ts  # JWT verification middleware
 │   │   │   ├── error.middleware.ts # Global error handling middleware
 │   │   │   ├── notFound.middleware.ts # 404 route handler
+│   │   │   ├── rateLimit.middleware.ts # API & auth endpoint rate limiters
 │   │   │   ├── rbac.middleware.ts  # Role authorization guard
 │   │   │   └── validate.middleware.ts # Zod request validator
 │   │   ├── models/
-│   │   │   ├── booking.model.ts    # Service ticket schema & sequential numbering
+│   │   │   ├── booking.model.ts    # Service ticket schema & atomic sequential numbering
+│   │   │   ├── counter.model.ts    # Atomic daily sequence counter collection
 │   │   │   ├── part.model.ts       # Spare parts schema with low-stock indicator
 │   │   │   ├── service.model.ts    # Service packages schema
-│   │   │   └── user.model.ts       # User account schema with bcrypt hashing
+│   │   │   └── user.model.ts       # User account schema with bcrypt hashing & tokenVersion
 │   │   ├── routes/
 │   │   │   ├── auth.routes.ts      # Authentication routes
 │   │   │   ├── booking.routes.ts   # Service ticket routes
@@ -96,7 +99,7 @@ bengkel-motor-6/
 │   │   │   └── express.d.ts        # Express Request type augmentations
 │   │   ├── utils/
 │   │   │   ├── appError.ts         # Custom error hierarchy
-│   │   │   ├── jakartaDate.ts      # Timezone helper utilities
+│   │   │   ├── jakartaDate.ts      # Timezone & regex escape helper utilities
 │   │   │   ├── jwt.ts              # Token generation and verification
 │   │   │   ├── response.ts         # Standardized JSON response envelopes
 │   │   │   └── seeder.ts           # Initial database seeder script
@@ -180,9 +183,9 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | Role | Email | Password | Scope & Responsibilities |
 | :--- | :--- | :--- | :--- |
 | **`admin`** | `admin@motorcenter.id` | `admin123` | Full access, user/staff management, master data |
-| **`kasir`** | `kasir@motorcenter.id` | `kasir123` | Walk-in ticket creation, mechanic assignment, checkout (`Diambil`) |
-| **`mekanik`** | `budi.mekanik@motorcenter.id` | `mekanik123` | Senior Mechanic: update ticket status, assign parts & services |
-| **`mekanik`** | `joko.mekanik@motorcenter.id` | `mekanik123` | CVT Mechanic: update ticket status, assign parts & services |
+| **`kasir`** | `kasir@motorcenter.id` | `kasir123` | Walk-in ticket creation, mechanic assignment, cancellation (`Dibatalkan`), pricing, checkout (`Diambil`) |
+| **`mekanik`** | `budi.mekanik@motorcenter.id` | `mekanik123` | Senior Mechanic: advance ticket work (`Diperiksa` -> `Dikerjakan` -> `Selesai`), assign/remove parts |
+| **`mekanik`** | `joko.mekanik@motorcenter.id` | `mekanik123` | CVT Mechanic: advance ticket work (`Diperiksa` -> `Dikerjakan` -> `Selesai`), assign/remove parts |
 | **`pemilik`** | `owner@motorcenter.id` | `owner123` | Workshop Owner: revenue reports, dashboard metrics, low-stock overview |
 | **`pelanggan`**| `andi.pelanggan@gmail.com` | `pelanggan123` | Customer: online booking, track motorbike service progress |
 
@@ -197,23 +200,26 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `POST` | `/api/auth/login` | Public | Authenticate credentials and receive Bearer JWT |
 | `GET` | `/api/auth/me` | Authenticated | Retrieve current user profile |
 | `PUT` | `/api/auth/me` | Authenticated | Update user name and phone number |
-| `PUT` | `/api/auth/change-password` | Authenticated | Change current account password |
+| `PUT` | `/api/auth/change-password` | Authenticated | Change current account password and invalidate existing JWTs |
 | `POST` | `/api/users` | Admin | Register new internal staff (`admin`, `kasir`, `mekanik`, `pemilik`) |
 | `GET` | `/api/users/mechanics` | Admin, Kasir | List active mechanics for ticket assignment |
 | `GET` | `/api/users` | Admin, Pemilik | Paginated user list with role and status filtering |
-| `PATCH`| `/api/users/:id/status` | Admin | Activate or deactivate staff accounts |
+| `PATCH`| `/api/users/:id/status` | Admin | Activate or deactivate staff accounts (protects self & last active admin) |
 | `GET` | `/api/services` | Public | Browse catalog of available workshop services |
 | `POST` | `/api/services` | Admin, Kasir | Create a new service package |
-| `GET` | `/api/parts` | Admin, Kasir, Mekanik, Pemilik | Browse active spare parts with `isLowStock` indicator |
+| `PUT` | `/api/services/:id` | Admin, Kasir | Update service package details or reactivate service |
+| `DELETE`| `/api/services/:id` | Admin, Kasir | Soft-delete (deactivate) a service package |
+| `GET` | `/api/parts` | Admin, Kasir, Mekanik, Pemilik | Browse spare parts with `isLowStock` indicator |
 | `GET` | `/api/parts/low-stock` | Admin, Pemilik | List critical inventory items (<= minimum stock threshold) |
 | `POST` | `/api/parts` | Admin, Kasir | Add a new spare part to warehouse |
-| `PUT` | `/api/parts/:id` | Admin, Kasir | Restock inventory quantity or update price |
+| `PUT` | `/api/parts/:id` | Admin, Kasir | Restock inventory quantity, update price, or reactivate part |
+| `DELETE`| `/api/parts/:id` | Admin, Kasir | Soft-delete (deactivate) a spare part |
 | `POST` | `/api/bookings/online` | Pelanggan | Customer online appointment booking (`Antre`) |
 | `POST` | `/api/bookings/walk-in` | Admin, Kasir | Walk-in counter ticket creation (`Antre`) |
-| `GET` | `/api/bookings` | Authenticated | List tickets (scoped automatically by user role) |
+| `GET` | `/api/bookings` | Authenticated | List tickets (scoped automatically by user role; WIB date filters) |
 | `GET` | `/api/bookings/:id` | Authorized | Ticket detail, status audit history, and parts used |
 | `PUT` | `/api/bookings/:id/assign` | Admin, Kasir | Assign mechanic to a service ticket |
-| `PUT` | `/api/bookings/:id/status` | Admin, Kasir, assigned Mekanik | Sequential status changes; only Admin/Kasir may set `Diambil` |
+| `PUT` | `/api/bookings/:id/status` | Admin, Kasir, assigned Mekanik | Sequential status changes; `Dibatalkan`, `Diambil`, and `serviceFee` restricted to Admin/Kasir |
 | `POST` | `/api/bookings/:id/parts` | Admin, Kasir, Mekanik | Add spare part & atomically deduct warehouse stock |
 | `DELETE`| `/api/bookings/:id/parts/:partItemId`| Admin, Kasir, Mekanik | Remove a ticket line item and restore stock in one transaction |
 | `GET` | `/api/reports/dashboard` | Admin, Pemilik | Summary metrics: revenue, active jobs, completed jobs, low-stock count |

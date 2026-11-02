@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 import { BOOKING_TYPE, BookingType, SERVICE_STATUS, ServiceStatus } from '../constants';
 import { jakartaDate } from '../utils/jakartaDate';
+import { Counter } from './counter.model';
 
 export interface IPartUsedItem {
   _id?: Types.ObjectId;
@@ -47,7 +48,8 @@ export interface IBooking extends Document {
 }
 
 export interface IBookingModel extends Model<IBooking> {
-  generateBookingNumber(): Promise<string>;
+  generateBookingNumber(now?: Date): Promise<string>;
+  syncBookingCounter(now?: Date): Promise<number>;
 }
 
 const partUsedItemSchema = new Schema<IPartUsedItem>({
@@ -179,26 +181,69 @@ const bookingSchema = new Schema<IBooking, IBookingModel>(
   }
 );
 
-// Format: MC-YYYYMMDD-XXXX
-bookingSchema.statics.generateBookingNumber = async function (): Promise<string> {
-  const datePrefix = `MC-${jakartaDate(new Date()).replaceAll('-', '')}-`;
+async function findMaxExistingSequence(
+  model: Model<IBooking>,
+  datePrefix: string
+): Promise<number> {
+  const existing = await model
+    .find({ bookingNumber: new RegExp(`^${datePrefix}\\d+$`) })
+    .select('bookingNumber')
+    .lean();
 
-  const latestBooking = await this.findOne({
-    bookingNumber: new RegExp(`^${datePrefix}`),
-  })
-    .sort({ bookingNumber: -1 })
-    .select('bookingNumber');
+  let maxSeq = 0;
+  for (const item of existing) {
+    const suffix = item.bookingNumber.slice(datePrefix.length);
+    const parsed = Number.parseInt(suffix, 10);
+    if (!Number.isNaN(parsed) && parsed > maxSeq) {
+      maxSeq = parsed;
+    }
+  }
+  return maxSeq;
+}
 
-  let nextSequence = 1;
-  if (latestBooking && latestBooking.bookingNumber) {
-    const parts = latestBooking.bookingNumber.split('-');
-    const currentSeq = parseInt(parts[2], 10);
-    if (!isNaN(currentSeq)) {
-      nextSequence = currentSeq + 1;
+bookingSchema.statics.syncBookingCounter = async function (
+  now: Date = new Date()
+): Promise<number> {
+  const dayKey = jakartaDate(now).replaceAll('-', '');
+  const counterId = `booking:${dayKey}`;
+  const datePrefix = `MC-${dayKey}-`;
+  const maxSeq = await findMaxExistingSequence(this, datePrefix);
+
+  try {
+    await Counter.create({ _id: counterId, seq: maxSeq });
+  } catch (error: any) {
+    if (error?.code !== 11000) throw error;
+    if (maxSeq > 0) {
+      await Counter.updateOne(
+        { _id: counterId, seq: { $lt: maxSeq } },
+        { $set: { seq: maxSeq } }
+      );
     }
   }
 
-  const paddedSequence = String(nextSequence).padStart(4, '0');
+  return maxSeq;
+};
+
+// Format: MC-YYYYMMDD-XXXX
+bookingSchema.statics.generateBookingNumber = async function (
+  now: Date = new Date()
+): Promise<string> {
+  const dayKey = jakartaDate(now).replaceAll('-', '');
+  const counterId = `booking:${dayKey}`;
+  const datePrefix = `MC-${dayKey}-`;
+
+  const existingCounter = await Counter.findById(counterId).lean();
+  if (!existingCounter) {
+    await this.syncBookingCounter(now);
+  }
+
+  const counter = await Counter.findByIdAndUpdate(
+    counterId,
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const paddedSequence = String(counter.seq).padStart(4, '0');
   return `${datePrefix}${paddedSequence}`;
 };
 

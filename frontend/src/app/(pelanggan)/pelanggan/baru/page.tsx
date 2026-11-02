@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,28 +30,12 @@ import { useServices } from "@/hooks/use-queries";
 import { useCreateBooking } from "@/hooks/use-mutations";
 import { applyApiFieldErrors } from "@/lib/form-errors";
 import { formatRupiah } from "@/lib/format";
+import {
+  createOnlineBookingFormSchema,
+  type CreateOnlineBookingFormValues,
+} from "@/lib/validations";
 
 const NO_SERVICE = "__none__";
-
-// Mirrors backend/src/validations/booking.validation.ts createOnlineBookingSchema.
-const createOnlineBookingSchema = z.object({
-  plateNumber: z
-    .string()
-    .min(3, "Nomor plat minimal 3 karakter")
-    .max(15, "Nomor plat maksimal 15 karakter"),
-  motorModel: z
-    .string()
-    .min(2, "Model motor minimal 2 karakter")
-    .max(50, "Model motor maksimal 50 karakter"),
-  complaint: z
-    .string()
-    .min(3, "Keluhan minimal 3 karakter")
-    .max(500, "Keluhan maksimal 500 karakter"),
-  serviceId: z.string().optional(),
-  serviceDate: z.string().optional(),
-});
-
-type CreateOnlineBookingValues = z.infer<typeof createOnlineBookingSchema>;
 
 const KNOWN_FIELDS = [
   "plateNumber",
@@ -67,10 +50,10 @@ export default function NewBookingPage() {
   const { user } = useAuth();
   const createBooking = useCreateBooking();
   const { data: servicesData } = useServices();
-  const services = servicesData?.data ?? [];
+  const services = servicesData ?? [];
 
-  const form = useForm<CreateOnlineBookingValues>({
-    resolver: zodResolver(createOnlineBookingSchema),
+  const form = useForm<CreateOnlineBookingFormValues>({
+    resolver: zodResolver(createOnlineBookingFormSchema),
     defaultValues: {
       plateNumber: "",
       motorModel: "",

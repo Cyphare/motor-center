@@ -9,6 +9,7 @@ export interface IUser extends Document {
   role: UserRole;
   phone: string;
   isActive: boolean;
+  tokenVersion: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -58,12 +59,17 @@ const userSchema = new Schema<IUser, IUserModel>(
       default: true,
       index: true,
     },
+    tokenVersion: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
     toJSON: {
       transform: (_doc, ret) => {
         delete (ret as any).password;
+        delete (ret as any).tokenVersion;
         delete (ret as any).__v;
         return ret;
       },
