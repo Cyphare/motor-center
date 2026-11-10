@@ -30,11 +30,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="id"
+      suppressHydrationWarning
       className={`${inter.variable} ${barlowCondensed.variable} ${geistMono.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
-        <Toaster richColors position="top-right" />
+        <Providers>
+          {children}
+          <Toaster richColors position="top-right" />
+        </Providers>
       </body>
     </html>
   );

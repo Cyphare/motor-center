@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function PublicLayout({
   children,
@@ -17,6 +18,7 @@ export default function PublicLayout({
             <span>MotorCenter</span>
           </Link>
           <nav className="flex items-center gap-2">
+            <ThemeToggle />
             <Button asChild variant="ghost" size="sm">
               <Link href="/catalog">Layanan</Link>
             </Button>
