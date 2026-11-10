@@ -2,6 +2,7 @@ import { Check, X } from "lucide-react";
 
 import type { ServiceStatus } from "@/types/api";
 import { SERVICE_STATUS_FLOW } from "@/types/api";
+import { getStatusMeta } from "@/lib/status-meta";
 import { cn } from "@/lib/utils";
 
 export interface StatusStepperProps {
@@ -15,14 +16,21 @@ export interface StatusStepperProps {
  */
 export function StatusStepper({ status, className }: StatusStepperProps) {
   if (status === "Dibatalkan") {
+    const meta = getStatusMeta(status);
     return (
       <div
         className={cn(
-          "flex items-center gap-2 text-sm font-medium text-red-700",
+          "flex items-center gap-2 text-sm font-medium",
+          meta.textClass,
           className
         )}
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-100">
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full",
+            meta.solidClass
+          )}
+        >
           <X className="h-4 w-4" />
         </span>
         Tiket dibatalkan
@@ -33,33 +41,52 @@ export function StatusStepper({ status, className }: StatusStepperProps) {
   const currentIndex = SERVICE_STATUS_FLOW.indexOf(status);
 
   return (
-    <ol className={cn("flex flex-wrap items-center gap-2", className)}>
+    <ol
+      className={cn("grid grid-cols-5 gap-1", className)}
+      aria-label="Tahapan servis"
+    >
       {SERVICE_STATUS_FLOW.map((step, index) => {
         const isDone = index < currentIndex;
         const isCurrent = index === currentIndex;
+        const meta = getStatusMeta(step);
+        const Icon = meta.icon;
         return (
-          <li key={step} className="flex items-center gap-2">
+          <li
+            key={step}
+            className="relative flex flex-col items-center gap-1.5 text-center"
+            aria-current={isCurrent ? "step" : undefined}
+          >
+            {index > 0 && (
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute right-1/2 top-4 h-0.5 w-full -translate-y-1/2",
+                  index <= currentIndex ? "bg-status-selesai" : "bg-border"
+                )}
+              />
+            )}
             <span
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold",
-                isDone && "border-emerald-500 bg-emerald-500 text-white",
-                isCurrent && "border-blue-600 bg-blue-600 text-white",
-                !isDone && !isCurrent && "border-slate-300 text-slate-500"
+                "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 bg-card",
+                isDone && "border-status-selesai bg-status-selesai text-white",
+                isCurrent && cn(meta.solidClass, "ring-4 ring-primary/20"),
+                !isDone && !isCurrent && "border-border text-muted-foreground"
               )}
             >
-              {isDone ? <Check className="h-4 w-4" /> : index + 1}
+              {isDone ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Icon className="h-4 w-4" />
+              )}
             </span>
             <span
               className={cn(
-                "text-xs font-medium",
+                "text-[11px] font-medium leading-tight sm:text-xs",
                 isCurrent ? "text-foreground" : "text-muted-foreground"
               )}
             >
-              {step}
+              {meta.label}
             </span>
-            {index < SERVICE_STATUS_FLOW.length - 1 && (
-              <span className="mx-1 h-px w-6 bg-slate-200" aria-hidden />
-            )}
           </li>
         );
       })}

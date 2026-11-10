@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-memory",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "pnpm@11.6.0", "--dir", "backend", "run", "dev:memory"],
+      "port": 8000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "pnpm@11.6.0", "--dir", "frontend", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

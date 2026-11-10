@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
+import { PlateNumber } from "@/components/plate-number";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
@@ -75,8 +76,8 @@ export default function PelangganDashboardPage() {
                       <CardTitle className="text-base">
                         {booking.bookingNumber}
                       </CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {booking.plateNumber} &middot; {booking.motorModel}
+                      <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                        <PlateNumber plate={booking.plateNumber} size="sm" /> {booking.motorModel}
                       </p>
                     </div>
                     <StatusBadge status={booking.status} />
