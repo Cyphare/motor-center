@@ -40,6 +40,19 @@ export const updatePart = async (req: Request, res: Response, next: NextFunction
   } catch (error) { next(error); }
 };
 
+export const restockPart = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try{
+    const {quantity} = req.body;
+    const part = await Part.findOneAndUpdate(
+      {_id: req.params.id, isActive: true},
+      {$inc: {stock: quantity}},
+      {new: true, runValidators: true}
+    );
+    if(!part) throw new NotFoundError('Suku cadang tidak ditemukan atau sudah dinonaktifkan');
+    sendSuccess(res, `Stok ${part.name} berhasil ditambah sebanyak ${quantity} ${part.unit}`, part);
+  } catch (error) {next(error);}
+}
+
 export const deletePart = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const part = await Part.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
