@@ -12,8 +12,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 // default home is the staff dashboard.
 export const ROLE_HOME: Record<UserRole, string> = {
   pelanggan: "/pelanggan",
-  kasir: "/staff",
-  admin: "/staff",
+  kasir: "/staff/board",
+  admin: "/staff/board",
   mekanik: "/mekanik",
   pemilik: "/owner",
 };

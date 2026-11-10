@@ -16,6 +16,7 @@ import {
   Package,
   PackageX,
   PlusCircle,
+  SquareKanban,
   Tags,
   User,
   Users,
@@ -57,6 +58,7 @@ const BACKOFFICE_GROUPS: RoleScopedGroup[] = [
     label: "Operasional",
     roles: ["admin", "kasir"],
     links: [
+      { href: "/staff/board", label: "Papan Kerja", icon: SquareKanban },
       { href: "/staff", label: "Antrean", icon: ListChecks },
       { href: "/staff/baru", label: "Tiket Baru", icon: PlusCircle },
     ],

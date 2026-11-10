@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, Wrench } from "lucide-react";
+import { Plus, SquareKanban, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,12 +106,20 @@ export default function StaffQueuePage() {
         title="Antrean Servis"
         description="Semua tiket servis bengkel. Gunakan filter untuk mempersempit (zona waktu WIB)."
         actions={
-          <Button asChild size="sm">
-            <Link href="/staff/baru">
-              <Plus className="mr-1 h-4 w-4" />
-              Tiket Baru
-            </Link>
-          </Button>
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/staff/board">
+                <SquareKanban className="mr-1 h-4 w-4" />
+                Papan
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/staff/baru">
+                <Plus className="mr-1 h-4 w-4" />
+                Tiket Baru
+              </Link>
+            </Button>
+          </>
         }
       />
 
