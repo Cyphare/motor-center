@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { List, Plus, RefreshCw, Search } from "lucide-react";
+import { List, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,6 @@ import {
   sortByWaiting,
   type BoardStatus,
 } from "@/lib/board";
-import { getStatusMeta } from "@/lib/status-meta";
 import type { Booking, ServiceStatus } from "@/types/api";
 
 /** Re-render once a minute so "time in stage" stays current. */
@@ -122,7 +121,7 @@ export default function StaffBoardPage() {
     <main className="flex w-full flex-1 flex-col gap-5 px-4 py-6 sm:px-6 lg:py-8">
       <PageHeader
         title="Papan Kerja"
-        description={`${totalActive} tiket aktif. Seret kartu ke kolom berikutnya atau tekan tombol di kartu.`}
+        description={`${totalActive} tiket aktif`}
         actions={
           <>
             <Button asChild variant="outline" size="sm">
@@ -152,14 +151,6 @@ export default function StaffBoardPage() {
             aria-label="Cari tiket di papan"
           />
         </div>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <RefreshCw
-            className={
-              board.isFetching ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-            }
-          />
-          Diperbarui otomatis tiap 20 detik
-        </span>
       </div>
 
       {board.isError ? (
@@ -193,14 +184,14 @@ export default function StaffBoardPage() {
               >
                 {board.isLoading ? (
                   <>
-                    <Skeleton className="h-36 w-full rounded-lg" />
-                    <Skeleton className="h-36 w-full rounded-lg" />
+                    <Skeleton className="h-36 w-full rounded-md" />
+                    <Skeleton className="h-36 w-full rounded-md" />
                   </>
                 ) : col.bookings.length === 0 ? (
-                  <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
+                  <p className="px-1 py-4 text-xs text-muted-foreground">
                     {search
                       ? "Tidak ada yang cocok"
-                      : `Belum ada tiket ${getStatusMeta(col.status).label.toLowerCase()}`}
+                      : "Kosong"}
                   </p>
                 ) : (
                   col.bookings.map((booking) => (

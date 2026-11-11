@@ -40,10 +40,8 @@ export function useLogin() {
   const { login } = useAuth();
   return useMutation({
     mutationFn: authService.login,
-    onSuccess: (result) => {
-      login(result);
-      toast.success("Login berhasil");
-    },
+    // No success toast: landing on the role's home page is the feedback.
+    onSuccess: (result) => login(result),
     onError: (error) => toast.error(errorMessage(error)),
   });
 }

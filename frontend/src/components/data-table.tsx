@@ -39,12 +39,18 @@ export function DataTable<T>({
   className,
 }: DataTableProps<T>) {
   return (
-    <div className={cn("rounded-lg border", className)}>
+    <div className={cn("overflow-x-auto", className)}>
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="border-b-2 border-foreground hover:bg-transparent">
             {columns.map((column) => (
-              <TableHead key={column.key} className={column.className}>
+              <TableHead
+                key={column.key}
+                className={cn(
+                  "text-xs font-semibold uppercase tracking-wider",
+                  column.className
+                )}
+              >
                 {column.header}
               </TableHead>
             ))}

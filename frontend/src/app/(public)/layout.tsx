@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function PublicLayout({
@@ -11,22 +11,22 @@ export default function PublicLayout({
 }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Wrench className="h-5 w-5 text-primary" />
-            <span>MotorCenter</span>
-          </Link>
-          <nav className="flex items-center gap-2">
+      <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
+        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Brand />
+          <nav className="flex items-center gap-1 text-sm font-medium">
+            <Link
+              href="/catalog"
+              className="hidden px-3 py-2 hover:text-primary sm:block"
+            >
+              Harga
+            </Link>
+            <Link href="/login" className="px-3 py-2 hover:text-primary">
+              Masuk
+            </Link>
             <ThemeToggle />
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/catalog">Layanan</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Masuk</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/register">Daftar</Link>
+            <Button asChild size="sm" className="ml-1">
+              <Link href="/register">Pesan servis</Link>
             </Button>
           </nav>
         </div>

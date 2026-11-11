@@ -3,8 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wrench } from "lucide-react";
 
+import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/shell/user-menu";
 import { activeHref, type NavLink } from "@/lib/nav-links";
@@ -40,20 +40,14 @@ export function MobileShell({
     <div className="flex min-h-full flex-1 flex-col">
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4 sm:px-6">
-          <Link
-            href={homeHref}
-            className="flex items-center gap-2 font-display text-lg font-bold tracking-wide"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Wrench className="h-3.5 w-3.5" />
-            </span>
-            MotorCenter
+          <div className="flex items-baseline gap-2">
+            <Brand href={homeHref} className="text-lg" />
             {areaLabel && (
-              <span className="text-sm font-medium text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {areaLabel}
               </span>
             )}
-          </Link>
+          </div>
 
           <nav className="hidden items-center gap-1 md:flex" aria-label="Utama">
             {links.map((link) => {

@@ -1,29 +1,22 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { ServiceCatalog } from "@/components/service-catalog";
 
 export default function CatalogPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
-      <div className="mb-8 space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Daftar Layanan</h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Layanan servis yang tersedia di MotorCenter. Harga dan estimasi durasi
-          bersifat perkiraan dan dapat disesuaikan setelah pemeriksaan.
-        </p>
-      </div>
-
-      <ServiceCatalog />
-
-      <div className="mt-10 flex flex-col items-center gap-2 rounded-lg border border-dashed p-6 text-center">
-        <p className="text-sm text-muted-foreground">
-          Ingin memesan servis online dan memantau statusnya?
-        </p>
-        <Button asChild>
-          <Link href="/register">Daftar sebagai pelanggan</Link>
-        </Button>
-      </div>
+    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
+      <PageHeader
+        title="Harga layanan"
+        description="Harga perkiraan. Biaya akhir ditentukan setelah motor diperiksa."
+        actions={
+          <Button asChild size="sm">
+            <Link href="/register">Pesan servis</Link>
+          </Button>
+        }
+      />
+      <ServiceCatalog className="mt-6" />
     </main>
   );
 }

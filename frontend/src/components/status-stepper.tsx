@@ -68,8 +68,8 @@ export function StatusStepper({ status, className }: StatusStepperProps) {
             <span
               className={cn(
                 "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 bg-card",
-                isDone && "border-status-selesai bg-status-selesai text-white",
-                isCurrent && cn(meta.solidClass, "ring-4 ring-primary/20"),
+                isDone && "border-status-selesai bg-status-selesai text-background",
+                isCurrent && meta.solidClass,
                 !isDone && !isCurrent && "border-border text-muted-foreground"
               )}
             >

@@ -1,58 +1,35 @@
 "use client";
 
-import { Clock, Wrench } from "lucide-react";
-
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { useServices } from "@/hooks/use-queries";
 import { formatRupiah } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 function formatDuration(minutes: number): string {
   if (!minutes || minutes <= 0) return "-";
-  if (minutes < 60) return `${minutes} menit`;
+  if (minutes < 60) return `${minutes} mnt`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest === 0 ? `${hours} jam` : `${hours} jam ${rest} menit`;
+  return rest === 0 ? `${hours} jam` : `${hours} j ${rest} mnt`;
+}
+
+export interface ServiceCatalogProps {
+  /** Show only the first N services (e.g. on the landing page). */
+  limit?: number;
+  className?: string;
 }
 
 /**
- * Shared service catalog list. Fetches services via useServices and renders
- * loading / error / empty / list states. Used by both the public catalog page
- * and the authenticated pelanggan services view so the data and presentation
- * stay in one place.
+ * Service price list: one row per service with duration and starting price,
+ * like the board on a workshop wall. Shared by the landing page, the public
+ * catalog, and the pelanggan services view.
  */
-export function ServiceCatalog() {
+export function ServiceCatalog({ limit, className }: ServiceCatalogProps) {
   const { data, isLoading, isError, error, refetch } = useServices();
-  const services = data ?? [];
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Card key={index}>
-            <CardHeader className="space-y-3">
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-4/5" />
-            </CardHeader>
-            <CardFooter className="gap-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-20" />
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+  const services = (data ?? []).filter((s) => s.isActive !== false);
+  const shown = limit ? services.slice(0, limit) : services;
 
   if (isError) {
     return (
@@ -63,35 +40,63 @@ export function ServiceCatalog() {
     );
   }
 
-  if (services.length === 0) {
+  if (!isLoading && services.length === 0) {
     return (
       <EmptyState
-        icon={<Wrench className="h-8 w-8" />}
-        title="Belum ada layanan"
-        description="Daftar layanan belum tersedia. Silakan hubungi bengkel untuk informasi lebih lanjut."
+        title="Daftar layanan belum tersedia"
+        description="Tanyakan langsung ke bengkel untuk harga terbaru."
       />
     );
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {services.map((service) => (
-        <Card key={service._id} className="flex flex-col">
-          <CardHeader className="flex-1">
-            <CardTitle>{service.name}</CardTitle>
-            <CardDescription>{service.description}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-foreground">
-              {formatRupiah(service.estimatedPrice)}
-            </span>
-            <span className="flex items-center gap-1 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              {formatDuration(service.estimatedDurationMinutes)}
-            </span>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <table className={cn("w-full border-collapse text-sm", className)}>
+      <thead>
+        <tr className="border-b-2 border-foreground text-left text-xs uppercase tracking-wider text-muted-foreground">
+          <th className="py-2 pr-4 font-semibold">Layanan</th>
+          <th className="hidden w-28 py-2 pr-4 font-semibold sm:table-cell">
+            Estimasi
+          </th>
+          <th className="w-32 py-2 text-right font-semibold">Mulai dari</th>
+        </tr>
+      </thead>
+      <tbody>
+        {isLoading
+          ? Array.from({ length: limit ?? 5 }).map((_, i) => (
+              <tr key={i} className="border-b">
+                <td className="py-3 pr-4">
+                  <Skeleton className="h-4 w-48" />
+                </td>
+                <td className="hidden py-3 pr-4 sm:table-cell">
+                  <Skeleton className="h-4 w-14" />
+                </td>
+                <td className="py-3">
+                  <Skeleton className="ml-auto h-4 w-20" />
+                </td>
+              </tr>
+            ))
+          : shown.map((service) => (
+              <tr key={service._id} className="border-b align-top">
+                <td className="py-3 pr-4">
+                  <p className="font-semibold">{service.name}</p>
+                  {service.description && (
+                    <p className="mt-0.5 line-clamp-2 text-muted-foreground">
+                      {service.description}
+                    </p>
+                  )}
+                  <p className="mt-0.5 text-xs text-muted-foreground sm:hidden">
+                    {formatDuration(service.estimatedDurationMinutes)}
+                  </p>
+                </td>
+                <td className="hidden py-3 pr-4 tabular-nums text-muted-foreground sm:table-cell">
+                  {formatDuration(service.estimatedDurationMinutes)}
+                </td>
+                <td className="py-3 text-right font-semibold tabular-nums">
+                  {formatRupiah(service.estimatedPrice)}
+                </td>
+              </tr>
+            ))}
+      </tbody>
+    </table>
   );
 }

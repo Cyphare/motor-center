@@ -59,9 +59,9 @@ export function BoardCard({
     <article
       ref={overlay ? undefined : setNodeRef}
       className={cn(
-        "group rounded-lg border bg-card p-3 shadow-xs transition-shadow",
+        "group rounded-md border bg-card p-3",
         isDragging && "opacity-40",
-        overlay && "rotate-1 shadow-xl ring-2 ring-primary",
+        overlay && "shadow-lg ring-1 ring-foreground",
         pending && "animate-pulse"
       )}
     >

@@ -34,7 +34,7 @@ export const STATUS_META: Record<ServiceStatus, StatusMeta> = {
     icon: Clock,
     badgeClass:
       "bg-status-antre/12 text-status-antre border-status-antre/30",
-    solidClass: "bg-status-antre text-white border-status-antre",
+    solidClass: "bg-status-antre text-background border-status-antre",
     textClass: "text-status-antre",
   },
   Diperiksa: {
@@ -43,7 +43,7 @@ export const STATUS_META: Record<ServiceStatus, StatusMeta> = {
     icon: Search,
     badgeClass:
       "bg-status-diperiksa/12 text-status-diperiksa border-status-diperiksa/30",
-    solidClass: "bg-status-diperiksa text-white border-status-diperiksa",
+    solidClass: "bg-status-diperiksa text-background border-status-diperiksa",
     textClass: "text-status-diperiksa",
   },
   Dikerjakan: {
@@ -52,7 +52,7 @@ export const STATUS_META: Record<ServiceStatus, StatusMeta> = {
     icon: Wrench,
     badgeClass:
       "bg-status-dikerjakan/15 text-status-dikerjakan border-status-dikerjakan/35",
-    solidClass: "bg-status-dikerjakan text-white border-status-dikerjakan",
+    solidClass: "bg-status-dikerjakan text-background border-status-dikerjakan",
     textClass: "text-status-dikerjakan",
   },
   Selesai: {
@@ -61,7 +61,7 @@ export const STATUS_META: Record<ServiceStatus, StatusMeta> = {
     icon: ClipboardCheck,
     badgeClass:
       "bg-status-selesai/12 text-status-selesai border-status-selesai/30",
-    solidClass: "bg-status-selesai text-white border-status-selesai",
+    solidClass: "bg-status-selesai text-background border-status-selesai",
     textClass: "text-status-selesai",
   },
   Diambil: {
@@ -70,7 +70,7 @@ export const STATUS_META: Record<ServiceStatus, StatusMeta> = {
     icon: PackageCheck,
     badgeClass:
       "bg-status-diambil/12 text-status-diambil border-status-diambil/30",
-    solidClass: "bg-status-diambil text-white border-status-diambil",
+    solidClass: "bg-status-diambil text-background border-status-diambil",
     textClass: "text-status-diambil",
   },
   Dibatalkan: {
@@ -79,7 +79,7 @@ export const STATUS_META: Record<ServiceStatus, StatusMeta> = {
     icon: Ban,
     badgeClass:
       "bg-status-dibatalkan/12 text-status-dibatalkan border-status-dibatalkan/30",
-    solidClass: "bg-status-dibatalkan text-white border-status-dibatalkan",
+    solidClass: "bg-status-dibatalkan text-background border-status-dibatalkan",
     textClass: "text-status-dibatalkan",
   },
 };

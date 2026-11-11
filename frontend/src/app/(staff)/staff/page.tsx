@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Plus, SquareKanban, Wrench } from "lucide-react";
+import { Plus, SquareKanban } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { PlateNumber } from "@/components/plate-number";
@@ -101,10 +95,9 @@ export default function StaffQueuePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:py-8">
       <PageHeader
-        title="Antrean Servis"
-        description="Semua tiket servis bengkel. Gunakan filter untuk mempersempit (zona waktu WIB)."
+        title="Antrean"
         actions={
           <>
             <Button asChild variant="outline" size="sm">
@@ -123,9 +116,8 @@ export default function StaffQueuePage() {
         }
       />
 
-      <Card className="mt-6">
-        <CardContent className="grid gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6 [&_label]:text-xs [&_label]:uppercase [&_label]:tracking-wider [&_label]:text-muted-foreground">
+          <div className="space-y-1">
             <Label>Status</Label>
             <Select value={status} onValueChange={resetToFirstPage(setStatus)}>
               <SelectTrigger>
@@ -141,7 +133,7 @@ export default function StaffQueuePage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label>Tipe tiket</Label>
             <Select
               value={bookingType}
@@ -160,7 +152,7 @@ export default function StaffQueuePage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label>Mekanik</Label>
             <Select
               value={mechanicId}
@@ -179,7 +171,7 @@ export default function StaffQueuePage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="plateNumber">Nomor plat</Label>
             <Input
               id="plateNumber"
@@ -190,7 +182,7 @@ export default function StaffQueuePage() {
               placeholder="B 1234 ABC"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="startDate">Dari tanggal</Label>
             <Input
               id="startDate"
@@ -202,7 +194,7 @@ export default function StaffQueuePage() {
               }
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="endDate">Sampai tanggal</Label>
             <Input
               id="endDate"
@@ -214,11 +206,10 @@ export default function StaffQueuePage() {
               }
             />
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {rangeError && (
-        <p className="mt-3 text-sm text-red-600" role="alert">
+        <p className="mt-3 text-sm text-destructive" role="alert">
           {rangeError}
         </p>
       )}
@@ -226,12 +217,11 @@ export default function StaffQueuePage() {
       <div className="mt-6">
         {rangeError ? (
           <EmptyState
-            icon={<Wrench className="h-8 w-8" />}
             title="Rentang tanggal tidak valid"
             description={rangeError}
           />
         ) : isLoading ? (
-          <TableSkeleton rows={5} columns={1} />
+          <TableSkeleton rows={5} columns={7} />
         ) : isError ? (
           <ErrorState
             message={error instanceof Error ? error.message : undefined}
@@ -239,43 +229,60 @@ export default function StaffQueuePage() {
           />
         ) : bookings.length === 0 ? (
           <EmptyState
-            icon={<Wrench className="h-8 w-8" />}
             title="Tidak ada tiket"
             description="Belum ada tiket yang cocok dengan filter ini."
           />
         ) : (
-          <div className="grid gap-4">
-            {bookings.map((booking) => (
-              <Link key={booking._id} href={`/staff/${booking._id}`}>
-                <Card className="transition-colors hover:border-primary/50">
-                  <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-                    <div className="space-y-1">
-                      <CardTitle className="text-base">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b-2 border-foreground text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="py-2 pr-3 font-semibold">Tiket</th>
+                  <th className="py-2 pr-3 font-semibold">Motor</th>
+                  <th className="py-2 pr-3 font-semibold">Pelanggan</th>
+                  <th className="py-2 pr-3 font-semibold">Keluhan</th>
+                  <th className="py-2 pr-3 font-semibold">Tipe</th>
+                  <th className="py-2 pr-3 font-semibold">Tanggal</th>
+                  <th className="py-2 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.map((booking) => (
+                  <tr
+                    key={booking._id}
+                    className="group relative border-b align-top hover:bg-muted/50"
+                  >
+                    <td className="py-2.5 pr-3">
+                      <Link
+                        href={`/staff/${booking._id}`}
+                        className="font-medium tabular-nums after:absolute after:inset-0 group-hover:text-primary"
+                      >
                         {booking.bookingNumber}
-                      </CardTitle>
-                      <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-                        <PlateNumber plate={booking.plateNumber} size="sm" /> {booking.motorModel} &middot;{" "}
-                        {booking.customerName}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <PlateNumber plate={booking.plateNumber} size="sm" />
+                      <p className="mt-1 text-muted-foreground">
+                        {booking.motorModel}
                       </p>
-                    </div>
-                    <StatusBadge status={booking.status} />
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                    <span className="line-clamp-1 max-w-sm">
-                      {booking.complaint}
-                    </span>
-                    <span className="flex items-center gap-3">
-                      <span className="rounded border px-2 py-0.5 text-xs uppercase">
-                        {booking.bookingType}
-                      </span>
-                      <span>
-                        {formatDate(booking.serviceDate ?? booking.createdAt)}
-                      </span>
-                    </span>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
+                    </td>
+                    <td className="py-2.5 pr-3">{booking.customerName}</td>
+                    <td className="max-w-64 py-2.5 pr-3 text-muted-foreground">
+                      <span className="line-clamp-2">{booking.complaint}</span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-muted-foreground">
+                      {booking.bookingType === "online" ? "Online" : "Walk-in"}
+                    </td>
+                    <td className="whitespace-nowrap py-2.5 pr-3 tabular-nums text-muted-foreground">
+                      {formatDate(booking.serviceDate ?? booking.createdAt)}
+                    </td>
+                    <td className="py-2.5">
+                      <StatusBadge status={booking.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -3,7 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, Wrench } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
+
+import { Brand } from "@/components/brand";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,20 +25,6 @@ import {
 } from "@/lib/nav-links";
 import { ROLE_LABELS, homeForRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-
-function Brand({ href }: { href: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2.5 px-2 font-display text-xl font-bold tracking-wide"
-    >
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Wrench className="h-4 w-4" />
-      </span>
-      MotorCenter
-    </Link>
-  );
-}
 
 function SidebarNav({
   groups,
@@ -70,8 +58,8 @@ function SidebarNav({
                 className={cn(
                   "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-chrome-border text-chrome-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-full before:bg-primary"
-                    : "text-chrome-muted hover:bg-chrome-border/60 hover:text-chrome-foreground"
+                    ? "text-chrome-foreground before:absolute before:inset-y-1 before:-left-3 before:w-0.5 before:bg-primary"
+                    : "text-chrome-muted hover:text-chrome-foreground"
                 )}
               >
                 {Icon && (
@@ -129,7 +117,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-full flex-1">
       <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col bg-chrome text-chrome-foreground lg:flex">
         <div className="flex h-16 items-center border-b border-chrome-border px-4">
-          <Brand href={home} />
+          <Brand href={home} className="px-2" />
         </div>
         <SidebarNav groups={groups} />
         <SidebarFooter />
@@ -151,7 +139,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
             <SheetContent className="bg-chrome text-chrome-foreground">
               <SheetTitle className="sr-only">Navigasi</SheetTitle>
               <div className="flex h-16 items-center border-b border-chrome-border px-4">
-                <Brand href={home} />
+                <Brand href={home} className="px-2" />
               </div>
               <SidebarNav
                 groups={groups}
@@ -160,9 +148,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
               <SidebarFooter />
             </SheetContent>
           </Sheet>
-          <span className="font-display text-lg font-bold lg:hidden">
-            MotorCenter
-          </span>
+          <Brand href={home} className="text-lg lg:hidden" />
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
             <UserMenu profileHref={backofficeProfileHref(user.role)} />

@@ -92,8 +92,7 @@ export default function NewBookingPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
       <PageHeader
-        title="Pesan Servis Online"
-        description="Isi detail kendaraan dan keluhan Anda. Tiket akan masuk dengan status Antre."
+        title="Pesan Servis"
       />
 
       <Card className="mt-8">
