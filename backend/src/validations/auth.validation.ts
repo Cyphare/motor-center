@@ -1,5 +1,5 @@
 import { z } from 'zod';
-
+import { phoneSchema } from './common.validation';
 export const registerSchema = z.object({
   body: z.object({
     name: z
@@ -14,10 +14,7 @@ export const registerSchema = z.object({
     password: z
       .string({ error: 'Kata sandi wajib diisi' })
       .min(6, 'Kata sandi minimal 6 karakter'),
-    phone: z
-      .string({ error: 'Nomor telepon wajib diisi' })
-      .trim()
-      .min(8, 'Nomor telepon minimal 8 digit'),
+    phone: phoneSchema,
   }),
 });
 
@@ -42,11 +39,7 @@ export const updateProfileSchema = z.object({
         .min(2, 'Nama minimal 2 karakter')
         .max(100, 'Nama maksimal 100 karakter')
         .optional(),
-      phone: z
-        .string()
-        .trim()
-        .min(8, 'Nomor telepon minimal 8 digit')
-        .optional(),
+      phone: phoneSchema.optional(),
     })
     .refine(
       (value) => value.name !== undefined || value.phone !== undefined,

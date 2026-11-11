@@ -90,6 +90,18 @@ test('change-password: token baru tetap valid, token lama ditolak 401', async() 
 
     const r5 = await call('GET', '/auth/me', tokenA)
     assert.equal(r5.status, 401, 'token lama harus ditolak')
+})
 
-    
+test('register: telepon tidak valid ditolak 400', async() => {
+    for (const phone of ['081234567', '08123456789012', '0812abc45678', '+6281234567890']){
+        const r = await call('POST', '/auth/register',undefined, {name: 'Test User', email: `test${phone}@example.com`, password: 'password123', phone})
+        assert.equal(r.status, 400,  `phone ${phone} seharusnya ditolak: ${r.body.message}`)
+    }
+})
+
+test('register: telepon 10 dan 13 digit valid', async () => {
+    for (const phone of ['0812345678', '0812345678901']){
+        const r = await call('POST', '/auth/register',undefined, {name: 'Test User', email: `test${phone}@example.com`, password: 'password123', phone})
+        assert.equal(r.status, 201)
+    }
 })
