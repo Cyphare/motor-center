@@ -75,3 +75,21 @@ test('login: akun aktif dengan pass benar 200 dan accessToken', async() =>{
     assert.equal(r.status, 200)
     assert.ok(r.body.data.accessToken)
 })
+
+test('change-password: token baru tetap valid, token lama ditolak 401', async() => {
+    const r1 = await call('POST', '/auth/login', undefined, {email: 'aktif@example.com', password: 'mekanik123'})
+    assert.equal(r1.status, 200)
+    const tokenA = r1.body.data.accessToken
+
+    const r3 = await call('PUT', '/auth/change-password', tokenA, {oldPassword: 'mekanik123', newPassword: 'newpass123'})
+    assert.equal(r3.status, 200)
+    const tokenC = r3.body.data.accessToken
+
+    const r4 = await call('GET', '/auth/me', tokenC)
+    assert.equal(r4.status, 200, 'token baru harus valid')
+
+    const r5 = await call('GET', '/auth/me', tokenA)
+    assert.equal(r5.status, 401, 'token lama harus ditolak')
+
+    
+})
