@@ -228,7 +228,8 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `GET` | `/api/parts` | Admin, Kasir, Mekanik, Pemilik | Browse spare parts with `isLowStock` indicator |
 | `GET` | `/api/parts/low-stock` | Admin, Pemilik | List critical inventory items (<= minimum stock threshold) |
 | `POST` | `/api/parts` | Admin, Kasir | Add a new spare part to warehouse |
-| `PUT` | `/api/parts/:id` | Admin, Kasir | Restock inventory quantity, update price, or reactivate part |
+| `PUT` | `/api/parts/:id` | Admin, Kasir | Update price/details, correct stock (stock opname), or reactivate part |
+| `PATCH` | `/api/parts/:id/restock` | Admin, Kasir | Atomically add incoming stock (`$inc`), safe alongside concurrent ticket usage |
 | `DELETE`| `/api/parts/:id` | Admin, Kasir | Soft-delete (deactivate) a spare part |
 | `POST` | `/api/bookings/online` | Pelanggan | Customer online appointment booking (`Antre`) |
 | `POST` | `/api/bookings/walk-in` | Admin, Kasir | Walk-in counter ticket creation (`Antre`) |

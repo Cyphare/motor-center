@@ -674,7 +674,7 @@ Menambahkan data suku cadang baru ke master inventaris.
 ```
 
 ### `PUT /api/parts/:id`
-Memperbarui informasi suku cadang (harga, nama, satuan, stok, atau batas minimum).
+Memperbarui informasi suku cadang (harga, nama, satuan, stok, atau batas minimum). Field `stock` di sini **menimpa** nilai stok, sehingga hanya cocok untuk koreksi hasil *stock opname*. Untuk penerimaan barang masuk, gunakan `PATCH /api/parts/:id/restock`.
 * **Hak Akses**: `admin`, `kasir`.
 * **Sample Response (200 OK)**:
 ```json
@@ -693,6 +693,38 @@ Memperbarui informasi suku cadang (harga, nama, satuan, stok, atau batas minimum
   }
 }
 ```
+
+### `PATCH /api/parts/:id/restock`
+Menambah stok suku cadang secara **atomik** (`$inc`) saat barang masuk dari pemasok. Karena penambahan dihitung oleh database, restock aman dijalankan bersamaan dengan pemotongan stok dari tiket servis (`POST /api/bookings/:id/parts`) tanpa ada perubahan yang hilang (*lost update*).
+* **Hak Akses**: `admin`, `kasir`.
+* **Request Body** (field lain ditolak):
+  * `quantity` (Number, Wajib): bilangan bulat, minimal `1`. String seperti `"5"` ditolak.
+  * `note` (String, Opsional): catatan restock, maksimal 200 karakter. Saat ini divalidasi tetapi belum disimpan.
+```json
+{
+  "quantity": 20,
+  "note": "Kiriman pemasok"
+}
+```
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Stok Oli Mesin MPX 2 0.8L berhasil ditambah sebanyak 20 botol",
+  "data": {
+    "_id": "674a94b1c45e89a1b2c3d4e8",
+    "code": "OLI-MPX2",
+    "name": "Oli Mesin MPX 2 0.8L",
+    "unit": "botol",
+    "price": 58000,
+    "stock": 65,
+    "minStock": 10,
+    "isActive": true,
+    "isLowStock": false
+  }
+}
+```
+* **Galat**: `400` (id atau body tidak valid), `401` (tanpa token atau token tidak valid), `403` (peran selain admin/kasir), `404` (suku cadang tidak ditemukan atau nonaktif).
 
 ### `DELETE /api/parts/:id`
 Menonaktifkan suku cadang (*soft delete*) dengan mengubah `isActive: false` tanpa merusak riwayat transaksi servis masa lalu.

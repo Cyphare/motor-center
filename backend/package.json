@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "seed": "tsx src/utils/seeder.ts",
-    "dev:memory": "tsx src/dev/inMemory.ts"
+    "dev:memory": "tsx src/dev/inMemory.ts",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "keywords": [
     "express",
