@@ -44,3 +44,16 @@ export const updatePartSchema = z.object({ body: nonempty(part) });
 export const catalogQuerySchema = z.object({
   query: z.object({ includeInactive: z.enum(['true', 'false']).optional() }).strict(),
 });
+
+const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+
+export const restockPartSchema = z.object({
+  params: z.object({
+    id: z.string().regex(objectIdRegex, 'ID suku cadang tidak valid'),
+  }),
+  body: z.object({
+    quantity: z.number().int('Jumlah harus bilangan bulat').min(1, 'jumlah minimal 1').max(Number.MAX_SAFE_INTEGER),
+    note: z.string().trim().max(200).optional(),
+  })
+  .strict()
+})
