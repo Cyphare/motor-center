@@ -73,7 +73,7 @@ export const createOnlineBooking = async (
     if (serviceId) {
       const service = await Service.findById(serviceId);
       if (!service || !service.isActive) {
-        throw new BadRequestError('Layanan servis yang dipilih tidak ditemukan atau sedang tidak aktif');
+        throw new NotFoundError('Layanan servis yang dipilih tidak ditemukan atau sedang tidak aktif');
       }
       serviceName = service.name;
       initialServiceFee = service.estimatedPrice;
@@ -141,7 +141,7 @@ export const createWalkInBooking = async (
     if (serviceId) {
       const service = await Service.findById(serviceId);
       if (!service || !service.isActive) {
-        throw new BadRequestError('Layanan servis tidak valid atau tidak aktif');
+        throw new NotFoundError('Layanan servis tidak valid atau tidak aktif');
       }
       serviceName = service.name;
       if (serviceFee === undefined) {
