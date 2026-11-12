@@ -626,8 +626,8 @@ Mengambil daftar seluruh suku cadang aktif (atau seluruhnya termasuk nonaktif).
 ```
 
 ### `GET /api/parts/low-stock`
-Mengambil daftar suku cadang yang stoknya berada pada atau di bawah batas minimum (`stock <= minStock`). Digunakan untuk peringatan restok gudang.
-* **Hak Akses**: `admin`, `pemilik`.
+Mengambil daftar suku cadang yang stoknya berada pada atau di bawah batas minimum (`stock <= minStock`). Digunakan untuk peringatan restok gudang dan badge jumlah stok kritis di dasbor staf maupun pemilik.
+* **Hak Akses**: `admin`, `kasir`, `pemilik`.
 * **Sample Response (200 OK)**:
 ```json
 {
@@ -705,6 +705,7 @@ Menambahkan data suku cadang baru ke master inventaris.
 ### `PUT /api/parts/:id`
 Memperbarui informasi suku cadang (harga, nama, satuan, stok, atau batas minimum). Field `stock` di sini **menimpa** nilai stok, sehingga hanya cocok untuk koreksi hasil *stock opname*. Untuk penerimaan barang masuk, gunakan `PATCH /api/parts/:id/restock`.
 * **Hak Akses**: `admin`, `kasir`.
+* **Mutasi Stok**: jika `stock` berbeda dari nilai sekarang, selisihnya dicatat sebagai mutasi `adjust` (catatan `"Koreksi stok (stock opname)"`) dalam transaksi yang sama. Perubahan field lain tanpa mengubah stok tidak membuat mutasi. Bila koreksi membuat stok turun dari atas `minStock` ke `minStock` atau di bawahnya, email peringatan stok menipis dikirim (lihat *Email otomatis*).
 * **Sample Response (200 OK)**:
 ```json
 {
@@ -728,7 +729,7 @@ Menambah stok suku cadang secara **atomik** (`$inc`) saat barang masuk dari pema
 * **Hak Akses**: `admin`, `kasir`.
 * **Request Body** (field lain ditolak):
   * `quantity` (Number, Wajib): bilangan bulat, minimal `1`. String seperti `"5"` ditolak.
-  * `note` (String, Opsional): catatan restock, maksimal 200 karakter. Saat ini divalidasi tetapi belum disimpan.
+  * `note` (String, Opsional): catatan restock, maksimal 200 karakter. Disimpan pada catatan mutasi stok `restock` (lihat `GET /api/parts/:id/movements`).
 ```json
 {
   "quantity": 20,
@@ -754,6 +755,53 @@ Menambah stok suku cadang secara **atomik** (`$inc`) saat barang masuk dari pema
 }
 ```
 * **Galat**: `400` (id atau body tidak valid), `401` (tanpa token atau token tidak valid), `403` (peran selain admin/kasir), `404` (suku cadang tidak ditemukan atau nonaktif).
+
+### `GET /api/parts/:id/movements`
+Riwayat mutasi stok satu suku cadang (FR-ADM-06), diurutkan dari yang terbaru. Setiap perubahan stok dicatat dalam transaksi yang sama dengan perubahannya, sehingga stok tidak pernah berubah tanpa catatan:
+
+| `type` | Sumber | `quantity` |
+| :--- | :--- | :--- |
+| `restock` | `PATCH /api/parts/:id/restock` | positif |
+| `usage` | `POST /api/bookings/:id/parts` | negatif |
+| `return` | `DELETE /api/bookings/:id/parts/:partItemId`, atau pembatalan tiket (`PUT /api/bookings/:id/status` ke `Dibatalkan`) | positif |
+| `adjust` | koreksi `stock` lewat `PUT /api/parts/:id` | selisih, positif atau negatif |
+
+* **Hak Akses**: `admin`, `kasir`, `pemilik`.
+* **Query Params** (semua opsional):
+  * `type`: salah satu `restock`, `usage`, `return`, `adjust`.
+  * `startDate`, `endDate`: `YYYY-MM-DD`, dihitung per hari WIB. `startDate` tidak boleh setelah `endDate`.
+  * `page` (default `1`), `limit` (default `20`, maksimal `100`).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Riwayat mutasi stok berhasil diambil",
+  "data": [
+    {
+      "_id": "674b10a1c45e89a1b2c3d601",
+      "partId": "674a94a1c45e89a1b2c3d501",
+      "type": "usage",
+      "quantity": -2,
+      "stockAfter": 13,
+      "bookingId": { "_id": "674a93b2c45e89a1b2c3d4f2", "bookingNumber": "MC-20260929-0002" },
+      "userId": { "_id": "674a91b2c45e89a1b2c3d4e2", "name": "Budi Santoso", "role": "mekanik" },
+      "createdAt": "2026-09-29T09:15:00.000Z"
+    },
+    {
+      "_id": "674b0f11c45e89a1b2c3d600",
+      "partId": "674a94a1c45e89a1b2c3d501",
+      "type": "restock",
+      "quantity": 5,
+      "stockAfter": 15,
+      "userId": { "_id": "674a91b2c45e89a1b2c3d4e1", "name": "Siti Kasir", "role": "kasir" },
+      "note": "Kiriman pemasok",
+      "createdAt": "2026-09-29T08:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 2, "totalPages": 1 }
+}
+```
+* **Galat**: `400` (id, `type`, atau tanggal tidak valid), `401`, `403` (mekanik dan pelanggan), `404` (suku cadang tidak ditemukan).
 
 ### `DELETE /api/parts/:id`
 Menonaktifkan suku cadang (*soft delete*) dengan mengubah `isActive: false` tanpa merusak riwayat transaksi servis masa lalu.
@@ -904,6 +952,10 @@ Omzet dihitung hanya dari tiket berstatus `Diambil`, memakai `pickedUpAt` serta 
 ### Email otomatis
 
 Booking online mengirim konfirmasi ke email akun pelanggan. Saat tiket online menjadi `Selesai`, email kedua memuat estimasi jasa, part, dan total. Tiket walk-in tidak mengirim email. Tanpa konfigurasi SMTP, backend memakai Ethereal dan mencatat URL pratinjau; isi `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, dan `SMTP_FROM` bersama untuk pengiriman nyata. Kegagalan email dicatat setelah tiket tersimpan dan tidak mengubah respons sukses; tidak ada pengiriman ulang otomatis.
+
+**Peringatan stok menipis (FR-OWN-04).** Saat pemakaian suku cadang di tiket (`POST /api/bookings/:id/parts`) atau koreksi stok (`PUT /api/parts/:id`) membuat stok turun dari **di atas** `minStock` menjadi `minStock` atau di bawahnya, satu email (HTML dan teks biasa) dikirim ke seluruh akun `pemilik` dan `admin` yang aktif. Pemakaian berikutnya selama stok masih di bawah batas tidak mengirim email lagi. Peringatan baru muncul kembali setelah stok naik di atas `minStock` (misalnya lewat restock) lalu turun lagi. Email dikirim setelah transaksi tersimpan, dan kegagalannya hanya dicatat di log tanpa membatalkan pemakaian atau koreksi stok.
+
+Pada `NODE_ENV=test`, email tidak pernah dikirim, termasuk saat SMTP terisi di `.env`. Email ditampung di `testOutbox` (`mail.service.ts`) untuk diperiksa oleh integration test.
 
 ---
 
