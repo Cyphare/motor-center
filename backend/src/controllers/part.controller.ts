@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { Part } from '../models/part.model';
 import { NotFoundError, UnauthorizedError} from '../utils/appError';
-import { sendCreated, sendSuccess } from '../utils/response';
+import { sendCreated, sendPaginated, sendSuccess } from '../utils/response';
 import { changeStock } from '../services/stock.service';
 import mongoose from 'mongoose';
+import { StockMovement } from '../models/stockMovement.model';
+import { nextJakartaDay, startOfJakartaDay } from '../utils/jakartaDate';
 
 export const listParts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -100,5 +102,37 @@ export const deletePart = async (req: Request, res: Response, next: NextFunction
     const part = await Part.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
     if (!part) throw new NotFoundError('Suku cadang tidak ditemukan');
     sendSuccess(res, 'Suku cadang berhasil dinonaktifkan', part);
+  } catch (error) { next(error); }
+};
+
+export const listPartMovements = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const partId = String(req.params.id);
+    const part = await Part.findById(partId).select('_id');
+    if (!part) throw new NotFoundError('Suku cadang tidak ditemukan');
+
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
+    const filter: Record<string, unknown> = { partId: part._id };
+    if (req.query.type) filter.type = req.query.type;
+    if (req.query.startDate || req.query.endDate) {
+      const createdAt: Record<string, Date> = {};
+      if (req.query.startDate) createdAt.$gte = startOfJakartaDay(String(req.query.startDate));
+      if (req.query.endDate) createdAt.$lt = nextJakartaDay(String(req.query.endDate));
+      filter.createdAt = createdAt;
+    }
+
+    const [movements, total] = await Promise.all([
+      StockMovement.find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('userId', 'name role')
+        .populate('bookingId', 'bookingNumber')
+        .lean(),
+      StockMovement.countDocuments(filter),
+    ]);
+
+    sendPaginated(res, 'Riwayat mutasi stok berhasil diambil', movements, { page, limit, total });
   } catch (error) { next(error); }
 };

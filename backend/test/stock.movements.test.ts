@@ -108,3 +108,57 @@ test('PUT ke suku cadang yang tidak ada mengembalikan 404', async () => {
   const r = await call('PUT', `/parts/${new mongoose.Types.ObjectId()}`, kasirToken, { stock: 5 });
   assert.equal(r.status, 404, r.body.message);
 });
+
+// --- FR-ADM-06: GET /parts/:id/movements ---
+
+test('riwayat mutasi: urut terbaru dulu, memuat pengguna, sesuai kriteria SRS (restock 5 lalu koreksi -2)', async () => {
+  const partId = await createPart('MOV-1', 10);
+  const r1 = await call('PATCH', `/parts/${partId}/restock`, kasirToken, { quantity: 5, note: 'Kiriman pemasok' });
+  assert.equal(r1.status, 200, r1.body.message);
+  const r2 = await call('PUT', `/parts/${partId}`, kasirToken, { stock: 13 });
+  assert.equal(r2.status, 200, r2.body.message);
+
+  const r = await call('GET', `/parts/${partId}/movements`, kasirToken);
+  assert.equal(r.status, 200, r.body.message);
+  assert.equal(r.body.pagination.total, 2);
+  const [latest, first] = r.body.data;
+  assert.equal(latest.type, 'adjust');
+  assert.equal(latest.quantity, -2);
+  assert.equal(latest.stockAfter, 13);
+  assert.equal(first.type, 'restock');
+  assert.equal(first.quantity, 5);
+  assert.equal(first.stockAfter, 15);
+  assert.equal(first.note, 'Kiriman pemasok');
+  assert.equal(first.userId.name, 'Kasir Test');
+});
+
+test('riwayat mutasi: filter jenis dan rentang tanggal', async () => {
+  const partId = await createPart('MOV-2', 10);
+  await call('PATCH', `/parts/${partId}/restock`, kasirToken, { quantity: 1 });
+  await call('PUT', `/parts/${partId}`, kasirToken, { stock: 5 });
+
+  const byType = await call('GET', `/parts/${partId}/movements?type=restock`, adminToken);
+  assert.equal(byType.status, 200, byType.body.message);
+  assert.equal(byType.body.data.length, 1);
+  assert.equal(byType.body.data[0].type, 'restock');
+
+  const past = await call('GET', `/parts/${partId}/movements?startDate=2020-01-01&endDate=2020-01-31`, adminToken);
+  assert.equal(past.status, 200, past.body.message);
+  assert.equal(past.body.data.length, 0);
+});
+
+test('riwayat mutasi: validasi dan otorisasi', async () => {
+  const partId = await createPart('MOV-3', 10);
+
+  const mekanik = await call('GET', `/parts/${partId}/movements`, mekanikToken);
+  assert.equal(mekanik.status, 403, mekanik.body.message);
+
+  const badType = await call('GET', `/parts/${partId}/movements?type=hilang`, kasirToken);
+  assert.equal(badType.status, 400, badType.body.message);
+
+  const reversed = await call('GET', `/parts/${partId}/movements?startDate=2026-02-01&endDate=2026-01-01`, kasirToken);
+  assert.equal(reversed.status, 400, reversed.body.message);
+
+  const unknown = await call('GET', `/parts/${new mongoose.Types.ObjectId()}/movements`, kasirToken);
+  assert.equal(unknown.status, 404, unknown.body.message);
+});
