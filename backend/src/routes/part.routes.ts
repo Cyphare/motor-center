@@ -16,7 +16,7 @@ router.get('/', readers, validate(catalogQuerySchema), (req, res, next) => {
   if (req.query.includeInactive === 'true') return inactiveReaders(req, res, next);
   next();
 }, listParts);
-router.get('/low-stock', authorizeRoles(USER_ROLES.ADMIN, USER_ROLES.PEMILIK), listLowStock);
+router.get('/low-stock', inactiveReaders, listLowStock);
 router.get('/:id', readers, (req, res, next) => {
   if (req.query.includeInactive === 'true') return inactiveReaders(req, res, next);
   next();

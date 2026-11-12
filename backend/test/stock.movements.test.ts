@@ -235,3 +235,10 @@ test('stok menipis: stok yang tetap di atas minStock tidak memicu email', async 
   await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 4 });
   assert.equal(alertsFor('LOW-4').length, 0);
 });
+
+test('daftar stok kritis dapat dibaca kasir (badge dasbor staf), tidak oleh mekanik', async () => {
+  const kasir = await call('GET', '/parts/low-stock', kasirToken);
+  assert.equal(kasir.status, 200, kasir.body.message);
+  const mekanik = await call('GET', '/parts/low-stock', mekanikToken);
+  assert.equal(mekanik.status, 403, mekanik.body.message);
+});
