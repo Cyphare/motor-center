@@ -36,8 +36,37 @@ export const createPart = async (req: Request, res: Response, next: NextFunction
 
 export const updatePart = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const part = await Part.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!part) throw new NotFoundError('Suku cadang tidak ditemukan');
+    if (!req.user) throw new UnauthorizedError();
+    const user = req.user;
+    const partId = String(req.params.id);
+    const { stock, ...fields } = req.body as { stock?: number } & Record<string, unknown>;
+
+    let part: Awaited<ReturnType<typeof Part.findById>> = null;
+    await mongoose.connection.transaction(async (session) => {
+      const current = await Part.findById(partId).session(session);
+      if (!current) throw new NotFoundError('Suku cadang tidak ditemukan');
+
+      if (Object.keys(fields).length > 0) {
+        await Part.updateOne({ _id: partId }, fields, { runValidators: true, session });
+      }
+
+      // FR-ADM-06: a stock opname correction is logged as an 'adjust' movement
+      // instead of silently overwriting the stock value.
+      if (stock !== undefined && stock !== current.stock) {
+        const adjusted = await changeStock({
+          partId,
+          delta: stock - current.stock,
+          type: 'adjust',
+          userId: user.id,
+          note: 'Koreksi stok (stock opname)',
+          session,
+        });
+        if (!adjusted) throw new NotFoundError('Suku cadang tidak ditemukan');
+      }
+
+      part = await Part.findById(partId).session(session);
+    });
+
     sendSuccess(res, 'Suku cadang berhasil diperbarui', part);
   } catch (error) { next(error); }
 };
