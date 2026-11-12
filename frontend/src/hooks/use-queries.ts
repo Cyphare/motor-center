@@ -18,6 +18,7 @@ import {
   BOARD_STATUSES,
   type BoardStatus,
 } from "@/lib/board";
+import { isTerminalStatus } from "@/lib/derive";
 import type { Booking } from "@/types/api";
 
 export function useBookings(query: BookingListQuery = {}, enabled = true) {
@@ -28,12 +29,42 @@ export function useBookings(query: BookingListQuery = {}, enabled = true) {
   });
 }
 
-export function useBooking(id: string | undefined) {
+export const TRACKING_REFETCH_MS = 15_000;
+
+export interface UseBookingOptions {
+  /**
+   * Poll every N ms while the ticket is still open. Polling stops by itself
+   * once the status is terminal (Diambil / Dibatalkan).
+   */
+  pollMs?: number;
+}
+
+export function useBooking(
+  id: string | undefined,
+  { pollMs }: UseBookingOptions = {}
+) {
   return useQuery({
     queryKey: queryKeys.booking(id ?? ""),
     queryFn: () => bookingsService.getById(id as string),
     enabled: Boolean(id),
+    refetchInterval: pollMs
+      ? (query) => {
+          const status = query.state.data?.status;
+          return status && isTerminalStatus(status) ? false : pollMs;
+        }
+      : undefined,
   });
+}
+
+/** Backend cap on `limit`; pelanggan history beyond this is not shown. */
+export const OWN_BOOKINGS_LIMIT = 100;
+
+/**
+ * The signed-in user's bookings in one page (the backend scopes GET /bookings
+ * to the pelanggan). Feeds "Servis aktif", "Motor Saya", and motor history.
+ */
+export function useOwnBookings(enabled = true) {
+  return useBookings({ limit: OWN_BOOKINGS_LIMIT }, enabled);
 }
 
 export const BOARD_REFETCH_MS = 20_000;
