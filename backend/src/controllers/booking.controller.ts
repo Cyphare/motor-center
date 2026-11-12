@@ -3,7 +3,6 @@ import mongoose, { Types } from 'mongoose';
 import { Booking, IBooking } from '../models/booking.model';
 import { User } from '../models/user.model';
 import { Service } from '../models/service.model';
-import { Part } from '../models/part.model';
 import { sendBookingEmail } from '../services/mail.service';
 import { writeInvoice } from '../services/pdf.service';
 import {
@@ -26,6 +25,7 @@ import {
   nextJakartaDay,
   startOfJakartaDay,
 } from '../utils/jakartaDate';
+import { changeStock } from '../services/stock.service';
 
 const MAX_BOOKING_CREATE_ATTEMPTS = 5;
 
@@ -440,11 +440,15 @@ export const updateStatus = async (
       // FR-CASH-04: return every installed part to stock in the same transaction
       if (newStatus === SERVICE_STATUS.DIBATALKAN && booking.partsUsed.length > 0) {
         for (const item of booking.partsUsed) {
-          const part = await Part.findByIdAndUpdate(
-            item.partId,
-            { $inc: { stock: item.quantity } },
-            { new: true, session }
-          );
+          const part = await changeStock({
+            partId: item.partId,
+            delta: item.quantity,
+            type: 'return',
+            userId: user.id,
+            bookingId: booking._id,
+            note: `Tiket ${booking.bookingNumber} dibatalkan`,
+            session,
+          });
           if (!part) {
             throw new NotFoundError(
               `Suku cadang '${item.name}' tidak ditemukan; stok tidak dapat dikembalikan`
@@ -532,11 +536,15 @@ export const addPartToBooking = async (
           `Suku cadang hanya dapat ditambahkan pada status 'Diperiksa' atau 'Dikerjakan' (status saat ini: '${booking.status}')`
         );
       }
-      const part = await Part.findOneAndUpdate(
-        { _id: partId, stock: { $gte: quantity }, isActive: true },
-        { $inc: { stock: -quantity } },
-        { new: true, session }
-      );
+      const part = await changeStock({
+        partId,
+        delta: -quantity,
+        type: 'usage',
+        userId: req.user!.id,
+        requireActive: true,
+        session,
+        bookingId: booking._id,
+      });
       if (!part) {
         throw new BadRequestError(
           'Suku cadang tidak ditemukan, tidak aktif, atau jumlah stok di gudang tidak mencukupi'
@@ -599,11 +607,14 @@ export const removePartFromBooking = async (
       const index = booking.partsUsed.findIndex((item) => item._id?.toString() === partItemId);
       if (index === -1) throw new NotFoundError('Item suku cadang tidak ditemukan pada tiket servis ini');
       const removed = booking.partsUsed[index];
-      const part = await Part.findByIdAndUpdate(
-        removed.partId,
-        { $inc: { stock: removed.quantity } },
-        { new: true, session }
-      );
+      const part = await changeStock({
+        partId: removed.partId,
+        delta: removed.quantity,
+        type: 'return',
+        userId: req.user!.id,
+        session,
+        bookingId: booking._id,
+      });
       if (!part) throw new NotFoundError('Suku cadang asal tidak ditemukan; stok tidak dapat dikembalikan');
       removedName = removed.name;
       booking.partsUsed.splice(index, 1);
