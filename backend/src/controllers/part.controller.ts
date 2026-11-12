@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { Part } from '../models/part.model';
 import { NotFoundError, UnauthorizedError} from '../utils/appError';
 import { sendCreated, sendPaginated, sendSuccess } from '../utils/response';
-import { changeStock } from '../services/stock.service';
+import { changeStock, notifyLowStock } from '../services/stock.service';
+import { LowStockItem } from '../services/mail.service';
 import mongoose from 'mongoose';
 import { StockMovement } from '../models/stockMovement.model';
 import { nextJakartaDay, startOfJakartaDay } from '../utils/jakartaDate';
@@ -44,7 +45,9 @@ export const updatePart = async (req: Request, res: Response, next: NextFunction
     const { stock, ...fields } = req.body as { stock?: number } & Record<string, unknown>;
 
     let part: Awaited<ReturnType<typeof Part.findById>> = null;
+    const lowStockAlerts: LowStockItem[] = [];
     await mongoose.connection.transaction(async (session) => {
+      lowStockAlerts.length = 0; // the driver may retry this callback
       const current = await Part.findById(partId).session(session);
       if (!current) throw new NotFoundError('Suku cadang tidak ditemukan');
 
@@ -62,6 +65,7 @@ export const updatePart = async (req: Request, res: Response, next: NextFunction
           userId: user.id,
           note: 'Koreksi stok (stock opname)',
           session,
+          lowStockAlerts,
         });
         if (!adjusted) throw new NotFoundError('Suku cadang tidak ditemukan');
       }
@@ -69,6 +73,7 @@ export const updatePart = async (req: Request, res: Response, next: NextFunction
       part = await Part.findById(partId).session(session);
     });
 
+    await notifyLowStock(lowStockAlerts);
     sendSuccess(res, 'Suku cadang berhasil diperbarui', part);
   } catch (error) { next(error); }
 };

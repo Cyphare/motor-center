@@ -25,7 +25,8 @@ import {
   nextJakartaDay,
   startOfJakartaDay,
 } from '../utils/jakartaDate';
-import { changeStock } from '../services/stock.service';
+import { changeStock, notifyLowStock } from '../services/stock.service';
+import { LowStockItem } from '../services/mail.service';
 
 const MAX_BOOKING_CREATE_ATTEMPTS = 5;
 
@@ -517,7 +518,9 @@ export const addPartToBooking = async (
     const { partId, quantity } = req.body;
     let booking;
     let partName = '';
+    const lowStockAlerts: LowStockItem[] = [];
     await mongoose.connection.transaction(async (session) => {
+      lowStockAlerts.length = 0; // the driver may retry this callback
       booking = await Booking.findById(req.params.id).session(session);
       if (!booking) throw new NotFoundError('Tiket servis tidak ditemukan');
       if (
@@ -544,6 +547,7 @@ export const addPartToBooking = async (
         requireActive: true,
         session,
         bookingId: booking._id,
+        lowStockAlerts,
       });
       if (!part) {
         throw new BadRequestError(
@@ -564,6 +568,7 @@ export const addPartToBooking = async (
       booking.grandTotal = booking.serviceFee + booking.partsTotalCost;
       await booking.save({ session });
     });
+    await notifyLowStock(lowStockAlerts);
     sendSuccess(
       res,
       `Suku cadang '${partName}' (x${quantity}) berhasil ditambahkan ke tiket servis`,

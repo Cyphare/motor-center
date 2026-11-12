@@ -11,6 +11,8 @@ let base: string;
 let adminToken: string;
 let kasirToken: string;
 let mekanikToken: string;
+let mekanikId: string;
+let testOutbox: typeof import('../src/services/mail.service').testOutbox;
 let PartModel: typeof import('../src/models/part.model').Part;
 let StockMovementModel: typeof import('../src/models/stockMovement.model').StockMovement;
 
@@ -54,6 +56,7 @@ before(async () => {
   const { User } = await import('../src/models/user.model');
   PartModel = (await import('../src/models/part.model')).Part;
   StockMovementModel = (await import('../src/models/stockMovement.model')).StockMovement;
+  testOutbox = (await import('../src/services/mail.service')).testOutbox;
 
   server = app.listen(0);
   await new Promise((r) => server.once('listening', r));
@@ -62,7 +65,10 @@ before(async () => {
 
   await User.create({ name: 'Admin Test', email: 'admin@example.com', password: 'admin123', phone: '081234567890', role: USER_ROLES.ADMIN });
   await User.create({ name: 'Kasir Test', email: 'kasir@example.com', password: 'kasir123', phone: '081234567891', role: USER_ROLES.KASIR });
-  await User.create({ name: 'Mekanik Test', email: 'mekanik@example.com', password: 'mekanik123', phone: '081234567892', role: USER_ROLES.MEKANIK });
+  const mekanik = await User.create({ name: 'Mekanik Test', email: 'mekanik@example.com', password: 'mekanik123', phone: '081234567892', role: USER_ROLES.MEKANIK });
+  mekanikId = mekanik._id.toString();
+  await User.create({ name: 'Pemilik Test', email: 'pemilik@example.com', password: 'pemilik123', phone: '081234567893', role: USER_ROLES.PEMILIK });
+  await User.create({ name: 'Pemilik Nonaktif', email: 'pemilik.lama@example.com', password: 'pemilik123', phone: '081234567894', role: USER_ROLES.PEMILIK, isActive: false });
 
   adminToken = await login('admin@example.com', 'admin123');
   kasirToken = await login('kasir@example.com', 'kasir123');
@@ -161,4 +167,71 @@ test('riwayat mutasi: validasi dan otorisasi', async () => {
 
   const unknown = await call('GET', `/parts/${new mongoose.Types.ObjectId()}/movements`, kasirToken);
   assert.equal(unknown.status, 404, unknown.body.message);
+});
+
+// --- FR-OWN-04: low stock email alert ---
+
+async function createDiperiksaTicket(): Promise<string> {
+  const r1 = await call('POST', '/bookings/walk-in', kasirToken, {
+    customerName: 'Budi', customerPhone: '081234567890', plateNumber: 'AB 1234 CD',
+    motorModel: 'Honda Vario 160', complaint: 'Ganti oli', mechanicId: mekanikId,
+  });
+  assert.equal(r1.status, 201, `booking walk-in gagal: ${r1.body.message}`);
+  const bookingId = r1.body.data._id;
+  const r2 = await call('PUT', `/bookings/${bookingId}/status`, mekanikToken, { status: 'Diperiksa' });
+  assert.equal(r2.status, 200, `update status ke Diperiksa gagal: ${r2.body.message}`);
+  return bookingId;
+}
+
+const alertsFor = (code: string) =>
+  testOutbox.filter((mail) => mail.subject.startsWith('Peringatan stok menipis') && mail.text.includes(code));
+
+test('stok menipis: satu email saat stok turun melewati minStock, tidak dikirim ulang (kriteria SRS)', async () => {
+  const partId = await createPart('LOW-1', 6, 5);
+  const bookingId = await createDiperiksaTicket();
+
+  const r1 = await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 1 });
+  assert.equal(r1.status, 200, r1.body.message);
+  assert.equal(alertsFor('LOW-1').length, 1);
+
+  const mail = alertsFor('LOW-1')[0];
+  assert.deepEqual([...mail.to].sort(), ['admin@example.com', 'pemilik@example.com']);
+  assert.ok(mail.html?.includes('LOW-1'));
+
+  const r2 = await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 1 });
+  assert.equal(r2.status, 200, r2.body.message);
+  assert.equal(alertsFor('LOW-1').length, 1, 'pemakaian berikutnya tidak boleh memicu email kedua');
+
+  const lowStock = await call('GET', '/parts/low-stock', adminToken);
+  assert.equal(lowStock.status, 200, lowStock.body.message);
+  assert.ok(lowStock.body.data.some((part: { code: string }) => part.code === 'LOW-1'));
+});
+
+test('stok menipis: setelah restock di atas minStock, penurunan berikutnya memicu email lagi', async () => {
+  const partId = await createPart('LOW-2', 6, 5);
+  const bookingId = await createDiperiksaTicket();
+
+  await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 1 });
+  assert.equal(alertsFor('LOW-2').length, 1);
+
+  const restock = await call('PATCH', `/parts/${partId}/restock`, kasirToken, { quantity: 5 });
+  assert.equal(restock.status, 200, restock.body.message);
+  assert.equal(alertsFor('LOW-2').length, 1, 'restock tidak boleh memicu email');
+
+  await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 5 });
+  assert.equal(alertsFor('LOW-2').length, 2);
+});
+
+test('stok menipis: koreksi stock opname di bawah minStock juga memicu email', async () => {
+  const partId = await createPart('LOW-3', 10, 5);
+  const r = await call('PUT', `/parts/${partId}`, kasirToken, { stock: 4 });
+  assert.equal(r.status, 200, r.body.message);
+  assert.equal(alertsFor('LOW-3').length, 1);
+});
+
+test('stok menipis: stok yang tetap di atas minStock tidak memicu email', async () => {
+  const partId = await createPart('LOW-4', 10, 5);
+  const bookingId = await createDiperiksaTicket();
+  await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 4 });
+  assert.equal(alertsFor('LOW-4').length, 0);
 });
