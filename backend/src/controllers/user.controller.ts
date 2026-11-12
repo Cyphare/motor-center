@@ -122,6 +122,9 @@ export const toggleUserStatus = async (req: Request, res: Response, next: NextFu
     }
 
     user.isActive = isActive;
+    if (!isActive) {
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    }
     await user.save();
 
     const statusText = isActive ? 'diaktifkan' : 'dinonaktifkan';

@@ -33,7 +33,7 @@ export const authMiddleware = async (
 
     if ((decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
       throw new UnauthorizedError(
-        'Sesi autentikasi telah berakhir karena perubahan kata sandi. Silakan login kembali'
+        'Sesi Anda sudah tidak berlaku karena kata sandi atau status akun berubah. Silakan login kembali'
       );
     }
 

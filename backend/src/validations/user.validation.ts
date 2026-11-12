@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { USER_ROLES } from '../constants';
-
+import { phoneSchema } from './common.validation';
 const staffRoles = [
   USER_ROLES.ADMIN,
   USER_ROLES.KASIR,
@@ -30,10 +30,7 @@ export const createStaffSchema = z.object({
     role: z.enum(staffRoles, {
       error: 'Peran staf harus salah satu dari: admin, kasir, mekanik, pemilik',
     }),
-    phone: z
-      .string({ error: 'Nomor telepon wajib diisi' })
-      .trim()
-      .min(8, 'Nomor telepon minimal 8 karakter'),
+    phone: phoneSchema,
   }),
 });
 

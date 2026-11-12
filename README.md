@@ -216,11 +216,11 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `POST` | `/api/auth/login` | Public | Authenticate credentials and receive Bearer JWT |
 | `GET` | `/api/auth/me` | Authenticated | Retrieve current user profile |
 | `PUT` | `/api/auth/me` | Authenticated | Update user name and phone number |
-| `PUT` | `/api/auth/change-password` | Authenticated | Change current account password and invalidate existing JWTs |
+| `PUT` | `/api/auth/change-password` | Authenticated | Change current account password, invalidate existing JWTs, and return a fresh `accessToken` |
 | `POST` | `/api/users` | Admin | Register new internal staff (`admin`, `kasir`, `mekanik`, `pemilik`) |
 | `GET` | `/api/users/mechanics` | Admin, Kasir | List active mechanics for ticket assignment |
 | `GET` | `/api/users` | Admin, Pemilik | Paginated user list with role and status filtering |
-| `PATCH`| `/api/users/:id/status` | Admin | Activate or deactivate staff accounts (protects self & last active admin) |
+| `PATCH`| `/api/users/:id/status` | Admin | Activate or deactivate staff accounts (protects self & last active admin); deactivation revokes all existing sessions |
 | `GET` | `/api/services` | Public | Browse catalog of available workshop services |
 | `POST` | `/api/services` | Admin, Kasir | Create a new service package |
 | `PUT` | `/api/services/:id` | Admin, Kasir | Update service package details or reactivate service |
@@ -236,7 +236,7 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `GET` | `/api/bookings` | Authenticated | List tickets (scoped automatically by user role; WIB date filters) |
 | `GET` | `/api/bookings/:id` | Authorized | Ticket detail, status audit history, and parts used |
 | `PUT` | `/api/bookings/:id/assign` | Admin, Kasir | Assign mechanic to a service ticket |
-| `PUT` | `/api/bookings/:id/status` | Admin, Kasir, assigned Mekanik | Sequential status changes; `Dibatalkan`, `Diambil`, and `serviceFee` restricted to Admin/Kasir |
+| `PUT` | `/api/bookings/:id/status` | Admin, Kasir, assigned Mekanik | Sequential status changes; `Dibatalkan` (from `Antre` or `Diperiksa`, returns installed parts to stock), `Diambil`, and `serviceFee` restricted to Admin/Kasir |
 | `POST` | `/api/bookings/:id/parts` | Admin, Kasir, Mekanik | Add spare part & atomically deduct warehouse stock |
 | `DELETE`| `/api/bookings/:id/parts/:partItemId`| Admin, Kasir, Mekanik | Remove a ticket line item and restore stock in one transaction |
 | `GET` | `/api/reports/dashboard` | Admin, Pemilik | Summary metrics: revenue, active jobs, completed jobs, low-stock count |
