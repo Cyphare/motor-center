@@ -24,6 +24,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MotorCenter",
   description: "Sistem Manajemen Bengkel Motor MotorCenter",
+  icons: {
+    icon: "/Motor-Center_logo.png",
+    apple: "/Motor-Center_logo.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
