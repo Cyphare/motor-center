@@ -393,74 +393,96 @@ export const updateStatus = async (
 ): Promise<void> => {
   try {
     if (!req.user) throw new UnauthorizedError();
-
+    const user = req.user;
     const { status: newStatus, mechanicNotes, serviceFee } = req.body;
-    const booking = await Booking.findById(req.params.id);
 
-    if (!booking) {
-      throw new NotFoundError('Tiket servis tidak ditemukan');
-    }
+    let booking!: IBooking;
+    await mongoose.connection.transaction(async (session) => {
+      const found = await Booking.findById(req.params.id).session(session);
+      if (!found) throw new NotFoundError('Tiket servis tidak ditemukan');
+      booking = found;
 
-    if (req.user.role === USER_ROLES.MEKANIK) {
-      if (!booking.mechanicId || !booking.mechanicId.equals(req.user.id)) {
-        throw new ForbiddenError(
-          'Anda hanya berwenang memperbarui status tiket yang ditugaskan kepada Anda'
+      if (user.role === USER_ROLES.MEKANIK) {
+        if (!booking.mechanicId || !booking.mechanicId.equals(user.id)) {
+          throw new ForbiddenError(
+            'Anda hanya berwenang memperbarui status tiket yang ditugaskan kepada Anda'
+          );
+        }
+        if (newStatus === SERVICE_STATUS.DIAMBIL) {
+          throw new ForbiddenError(
+            'Hanya admin atau kasir yang dapat mencatat pembayaran dan pengambilan motor'
+          );
+        }
+        if (newStatus === SERVICE_STATUS.DIBATALKAN) {
+          throw new ForbiddenError('Hanya admin atau kasir yang dapat membatalkan tiket servis');
+        }
+        if (serviceFee !== undefined) {
+          throw new ForbiddenError(
+            'Hanya admin atau kasir yang dapat menetapkan atau mengubah biaya jasa'
+          );
+        }
+      }
+
+      // Validate sequential status workflow (US1)
+      const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[booking.status] || [];
+      if (!allowedTransitions.includes(newStatus as ServiceStatus)) {
+        throw new BadRequestError(
+          `Transisi dari status '${booking.status}' ke '${newStatus}' tidak sah. Alur yang sah: Antre -> Diperiksa -> Dikerjakan -> Selesai -> Diambil`
         );
       }
-      if (newStatus === SERVICE_STATUS.DIAMBIL) {
-        throw new ForbiddenError(
-          'Hanya admin atau kasir yang dapat mencatat pembayaran dan pengambilan motor'
+
+      if (newStatus === SERVICE_STATUS.DIPERIKSA && !booking.mechanicId) {
+        throw new BadRequestError(
+          'Mekanik harus ditugaskan terlebih dahulu sebelum status diubah ke Diperiksa'
         );
       }
-      if (newStatus === SERVICE_STATUS.DIBATALKAN) {
-        throw new ForbiddenError('Hanya admin atau kasir yang dapat membatalkan tiket servis');
+
+      // FR-CASH-04: return every installed part to stock in the same transaction
+      if (newStatus === SERVICE_STATUS.DIBATALKAN && booking.partsUsed.length > 0) {
+        for (const item of booking.partsUsed) {
+          const part = await Part.findByIdAndUpdate(
+            item.partId,
+            { $inc: { stock: item.quantity } },
+            { new: true, session }
+          );
+          if (!part) {
+            throw new NotFoundError(
+              `Suku cadang '${item.name}' tidak ditemukan; stok tidak dapat dikembalikan`
+            );
+          }
+        }
+        booking.set('partsUsed', []);
+        booking.partsTotalCost = 0;
+        booking.grandTotal = booking.serviceFee;
       }
+
+      if (newStatus === SERVICE_STATUS.SELESAI) {
+        booking.completedAt = new Date();
+      } else if (newStatus === SERVICE_STATUS.DIAMBIL) {
+        booking.pickedUpAt = new Date();
+      }
+
+      if (mechanicNotes !== undefined) {
+        booking.mechanicNotes = mechanicNotes;
+      }
+
       if (serviceFee !== undefined) {
-        throw new ForbiddenError(
-          'Hanya admin atau kasir yang dapat menetapkan atau mengubah biaya jasa'
-        );
+        booking.serviceFee = serviceFee;
+        booking.grandTotal = booking.serviceFee + booking.partsTotalCost;
       }
-    }
 
-    // Validate sequential status workflow (US1)
-    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[booking.status] || [];
-    if (!allowedTransitions.includes(newStatus as ServiceStatus)) {
-      throw new BadRequestError(
-        `Transisi dari status '${booking.status}' ke '${newStatus}' tidak sah. Alur yang sah: Antre -> Diperiksa -> Dikerjakan -> Selesai -> Diambil`
-      );
-    }
+      booking.status = newStatus as ServiceStatus;
+      booking.statusHistory.push({
+        status: newStatus as ServiceStatus,
+        changedBy: new Types.ObjectId(user.id),
+        changedAt: new Date(),
+        notes: mechanicNotes || `Status diperbarui menjadi ${newStatus}`,
+      });
 
-    if (newStatus === SERVICE_STATUS.DIPERIKSA && !booking.mechanicId) {
-      throw new BadRequestError(
-        'Mekanik harus ditugaskan terlebih dahulu sebelum status diubah ke Diperiksa'
-      );
-    }
-
-    if (newStatus === SERVICE_STATUS.SELESAI) {
-      booking.completedAt = new Date();
-    } else if (newStatus === SERVICE_STATUS.DIAMBIL) {
-      booking.pickedUpAt = new Date();
-    }
-
-    if (mechanicNotes !== undefined) {
-      booking.mechanicNotes = mechanicNotes;
-    }
-
-    if (serviceFee !== undefined) {
-      booking.serviceFee = serviceFee;
-      booking.grandTotal = booking.serviceFee + booking.partsTotalCost;
-    }
-
-    booking.status = newStatus as ServiceStatus;
-    booking.statusHistory.push({
-      status: newStatus as ServiceStatus,
-      changedBy: new Types.ObjectId(req.user.id),
-      changedAt: new Date(),
-      notes: mechanicNotes || `Status diperbarui menjadi ${newStatus}`,
+      await booking.save({ session });
     });
 
-    await booking.save();
-
+    // Email is sent only after the transaction commits, so a retried callback cannot send twice
     if (
       newStatus === SERVICE_STATUS.SELESAI &&
       booking.bookingType === BOOKING_TYPE.ONLINE &&

@@ -37,7 +37,7 @@ export type ServiceStatus = (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS]
 // Allowed state transitions for workshop tickets
 export const ALLOWED_STATUS_TRANSITIONS: Record<ServiceStatus, ServiceStatus[]> = {
   Antre: ['Diperiksa', 'Dibatalkan'],
-  Diperiksa: ['Dikerjakan'],
+  Diperiksa: ['Dikerjakan', 'Dibatalkan'],
   Dikerjakan: ['Selesai'],
   Selesai: ['Diambil'],
   Diambil: [],
