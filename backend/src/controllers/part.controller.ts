@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { Part } from '../models/part.model';
-import { NotFoundError } from '../utils/appError';
+import { NotFoundError, UnauthorizedError} from '../utils/appError';
 import { sendCreated, sendSuccess } from '../utils/response';
+import { changeStock } from '../services/stock.service';
+import mongoose from 'mongoose';
 
 export const listParts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -42,13 +44,24 @@ export const updatePart = async (req: Request, res: Response, next: NextFunction
 
 export const restockPart = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try{
-    const {quantity} = req.body;
-    const part = await Part.findOneAndUpdate(
-      {_id: req.params.id, isActive: true},
-      {$inc: {stock: quantity}},
-      {new: true, runValidators: true}
-    );
-    if(!part) throw new NotFoundError('Suku cadang tidak ditemukan atau sudah dinonaktifkan');
+    if (!req.user) throw new UnauthorizedError();
+    const user = req.user;
+    const {quantity, note} = req.body;    
+    let part!: NonNullable<Awaited<ReturnType<typeof changeStock>>>;
+    await mongoose.connection.transaction(async (session) => {
+      const result = await changeStock({
+        partId: String(req.params.id),
+        delta: quantity,
+        type: 'restock',
+        userId: user.id,
+        note,
+        session,
+        requireActive: true
+      })
+      if(!result) throw new NotFoundError('Suku cadang tidak ditemukan atau tidak aktif');
+      part = result;
+    })
+
     sendSuccess(res, `Stok ${part.name} berhasil ditambah sebanyak ${quantity} ${part.unit}`, part);
   } catch (error) {next(error);}
 }
