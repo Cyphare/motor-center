@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { createPart, deletePart, getPart, listLowStock, listParts, updatePart, restockPart } from '../controllers/part.controller';
+import { createPart, deletePart, getPart, listLowStock, listParts, updatePart, restockPart, listPartMovements } from '../controllers/part.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { USER_ROLES } from '../constants';
-import { catalogQuerySchema, createPartSchema, updatePartSchema, restockPartSchema } from '../validations/catalog.validation';
+import { catalogQuerySchema, createPartSchema, updatePartSchema, restockPartSchema, partMovementsSchema } from '../validations/catalog.validation';
 
 const router = Router();
 const staff = authorizeRoles(USER_ROLES.ADMIN, USER_ROLES.KASIR);
@@ -16,11 +16,12 @@ router.get('/', readers, validate(catalogQuerySchema), (req, res, next) => {
   if (req.query.includeInactive === 'true') return inactiveReaders(req, res, next);
   next();
 }, listParts);
-router.get('/low-stock', authorizeRoles(USER_ROLES.ADMIN, USER_ROLES.PEMILIK), listLowStock);
+router.get('/low-stock', inactiveReaders, listLowStock);
 router.get('/:id', readers, (req, res, next) => {
   if (req.query.includeInactive === 'true') return inactiveReaders(req, res, next);
   next();
 }, getPart);
+router.get('/:id/movements', inactiveReaders, validate(partMovementsSchema), listPartMovements);
 router.post('/', staff, validate(createPartSchema), createPart);
 router.put('/:id', staff, validate(updatePartSchema), updatePart);
 router.patch('/:id/restock', staff, validate(restockPartSchema), restockPart);

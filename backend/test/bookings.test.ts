@@ -146,3 +146,93 @@ test('mekanik tidak bisa membatalkan: 403', async () => {
   const r2 = await call('PUT', `/bookings/${bookingId}/status`, mekanikToken, {status: SERVICE_STATUS.DIBATALKAN });
   assert.equal(r2.status, 403, `mekanik seharusnya tidak bisa membatalkan booking: ${r2.body.message}`);
 });
+
+
+// --- FR-ADM-06: stock movement log for part usage and returns ---
+// Each test creates its own part so absolute stock assertions in earlier tests stay valid.
+
+async function createPart(code: string, stock = 10): Promise<string> {
+  const { Part } = await import('../src/models/part.model');
+  const part = await Part.create({ code, name: `Part ${code}`, price: 10000, stock, minStock: 1, unit: 'pcs' });
+  return part._id.toString();
+}
+
+async function stockOf(partId: string): Promise<number> {
+  const { Part } = await import('../src/models/part.model');
+  const part = await Part.findById(partId).lean();
+  assert.ok(part, `part ${partId} tidak ada di database`);
+  return part.stock;
+}
+
+async function movementsOf(bookingId: string) {
+  const { StockMovement } = await import('../src/models/stockMovement.model');
+  return StockMovement.find({ bookingId }).sort({ createdAt: 1, _id: 1 }).lean();
+}
+
+async function createDiperiksaTicket(): Promise<string> {
+  const r1 = await call('POST', '/bookings/walk-in', kasirToken, {
+    customerName: 'Budi', customerPhone: '081234567890', ...baseBody, serviceId: activeServiceId, mechanicId: mekanikId,
+  });
+  assert.equal(r1.status, 201, `booking walk-in gagal: ${r1.body.message}`);
+  const bookingId = r1.body.data._id;
+  const r2 = await call('PUT', `/bookings/${bookingId}/status`, mekanikToken, { status: SERVICE_STATUS.DIPERIKSA });
+  assert.equal(r2.status, 200, `update status ke Diperiksa gagal: ${r2.body.message}`);
+  return bookingId;
+}
+
+test('mutasi: pemakaian lalu pembatalan mencatat usage -3 dan return +3', async () => {
+  const partId = await createPart('MV-A');
+  const bookingId = await createDiperiksaTicket();
+
+  const r1 = await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 3 });
+  assert.equal(r1.status, 200, r1.body.message);
+  const r2 = await call('PUT', `/bookings/${bookingId}/status`, kasirToken, { status: SERVICE_STATUS.DIBATALKAN });
+  assert.equal(r2.status, 200, r2.body.message);
+
+  const movements = await movementsOf(bookingId);
+  assert.equal(movements.length, 2);
+  assert.equal(movements[0].type, 'usage');
+  assert.equal(movements[0].quantity, -3);
+  assert.equal(movements[0].stockAfter, 7);
+  assert.equal(movements[1].type, 'return');
+  assert.equal(movements[1].quantity, 3);
+  assert.equal(movements[1].stockAfter, 10);
+  assert.equal(await stockOf(partId), 10);
+});
+
+test('mutasi: menghapus part dari tiket mencatat return', async () => {
+  const partId = await createPart('MV-B');
+  const bookingId = await createDiperiksaTicket();
+
+  const r1 = await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 2 });
+  assert.equal(r1.status, 200, r1.body.message);
+  const partItemId = r1.body.data.partsUsed[0]._id;
+  const r2 = await call('DELETE', `/bookings/${bookingId}/parts/${partItemId}`, mekanikToken);
+  assert.equal(r2.status, 200, r2.body.message);
+
+  const movements = await movementsOf(bookingId);
+  assert.equal(movements.length, 2);
+  assert.equal(movements[1].type, 'return');
+  assert.equal(movements[1].quantity, 2);
+  assert.equal(movements[1].stockAfter, 10);
+  assert.equal(await stockOf(partId), 10);
+});
+
+test('pembatalan tetap mengembalikan stok walau part sudah dinonaktifkan', async () => {
+  const { Part } = await import('../src/models/part.model');
+  const partId = await createPart('MV-C');
+  const bookingId = await createDiperiksaTicket();
+
+  const r1 = await call('POST', `/bookings/${bookingId}/parts`, mekanikToken, { partId, quantity: 4 });
+  assert.equal(r1.status, 200, r1.body.message);
+  await Part.updateOne({ _id: partId }, { isActive: false });
+
+  const r2 = await call('PUT', `/bookings/${bookingId}/status`, kasirToken, { status: SERVICE_STATUS.DIBATALKAN });
+  assert.equal(r2.status, 200, `pembatalan seharusnya tetap berhasil: ${r2.body.message}`);
+  assert.equal(await stockOf(partId), 10);
+
+  const movements = await movementsOf(bookingId);
+  const returned = movements.find((m) => m.type === 'return');
+  assert.ok(returned, 'mutasi return tidak tercatat');
+  assert.equal(returned.quantity, 4);
+});
