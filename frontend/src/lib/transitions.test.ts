@@ -13,7 +13,7 @@ describe("ALLOWED_TRANSITIONS", () => {
   it("mirrors the backend status flow exactly, including Dibatalkan", () => {
     expect(ALLOWED_TRANSITIONS).toEqual({
       Antre: ["Diperiksa", "Dibatalkan"],
-      Diperiksa: ["Dikerjakan"],
+      Diperiksa: ["Dikerjakan", "Dibatalkan"],
       Dikerjakan: ["Selesai"],
       Selesai: ["Diambil"],
       Diambil: [],
@@ -93,5 +93,17 @@ describe("canAssignMechanic", () => {
     expect(canAssignMechanic("Selesai")).toBe(false);
     expect(canAssignMechanic("Diambil")).toBe(false);
     expect(canAssignMechanic("Dibatalkan")).toBe(false);
+  });
+});
+
+describe("cancel from Diperiksa (backend SRS alignment)", () => {
+  it("lets admin/kasir cancel while the ticket is being inspected", () => {
+    expect(nextStatusesForRole("Diperiksa", "kasir")).toEqual([
+      "Dikerjakan",
+      "Dibatalkan",
+    ]);
+  });
+  it("still keeps cancel away from mekanik", () => {
+    expect(nextStatusesForRole("Diperiksa", "mekanik")).toEqual(["Dikerjakan"]);
   });
 });

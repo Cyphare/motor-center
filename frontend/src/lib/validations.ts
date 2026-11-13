@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Mirrors backend common.validation phoneSchema: 10-13 digits only.
+export const PHONE_PATTERN = /^[0-9]{10,13}$/;
+export const PHONE_MESSAGE = "Nomor telepon harus 10 sampai 13 digit angka";
+
 // Centralized Zod v4 validation schemas mirroring backend/src/validations/*.ts.
 // Keeping every form schema in one module prevents drift across pages and keeps
 // client/server constraints aligned on the same Zod major version (v4).
@@ -45,7 +49,7 @@ export const registerFormSchema = z.object({
     .min(1, "Email wajib diisi")
     .email("Format alamat email tidak valid"),
   password: z.string().min(6, "Kata sandi minimal 6 karakter"),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 digit"),
+  phone: z.string().trim().regex(PHONE_PATTERN, PHONE_MESSAGE),
 });
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
@@ -56,7 +60,7 @@ export const updateProfileFormSchema = z.object({
     .trim()
     .min(2, "Nama minimal 2 karakter")
     .max(100, "Nama maksimal 100 karakter"),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 digit"),
+  phone: z.string().trim().regex(PHONE_PATTERN, PHONE_MESSAGE),
 });
 export type UpdateProfileFormValues = z.infer<typeof updateProfileFormSchema>;
 
@@ -111,8 +115,7 @@ export const createWalkInBookingFormSchema = z.object({
   customerPhone: z
     .string()
     .trim()
-    .min(8, "Nomor telepon minimal 8 karakter")
-    .max(20, "Nomor telepon maksimal 20 karakter"),
+    .regex(PHONE_PATTERN, PHONE_MESSAGE),
   plateNumber: z
     .string()
     .trim()
@@ -174,7 +177,7 @@ export const createStaffFormSchema = z.object({
   role: z.enum(STAFF_ROLES, {
     message: "Peran harus salah satu dari: admin, kasir, mekanik, pemilik",
   }),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter"),
+  phone: z.string().trim().regex(PHONE_PATTERN, PHONE_MESSAGE),
 });
 export type CreateStaffFormValues = z.infer<typeof createStaffFormSchema>;
 

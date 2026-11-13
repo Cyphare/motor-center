@@ -61,7 +61,7 @@ export const SERVICE_STATUS_FLOW: ServiceStatus[] = [
 // Must mirror backend/src/constants/index.ts ALLOWED_STATUS_TRANSITIONS exactly.
 export const ALLOWED_TRANSITIONS: Record<ServiceStatus, ServiceStatus[]> = {
   Antre: ["Diperiksa", "Dibatalkan"],
-  Diperiksa: ["Dikerjakan"],
+  Diperiksa: ["Dikerjakan", "Dibatalkan"],
   Dikerjakan: ["Selesai"],
   Selesai: ["Diambil"],
   Diambil: [],

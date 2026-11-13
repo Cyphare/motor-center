@@ -5,6 +5,7 @@ import {
   createOnlineBookingFormSchema,
   createStaffFormSchema,
   loginFormSchema,
+  PHONE_PATTERN,
   partFormSchema,
   registerFormSchema,
   serviceFormSchema,
@@ -133,4 +134,16 @@ describe("validateDateRange", () => {
     expect(validateDateRange("2026-04-30", "2026-04-01")).not.toBeNull();
     expect(validateDateRange("2026-04-15", "2026-04-15")).toBeNull();
   });
+});
+
+describe("PHONE_PATTERN (mirrors backend phoneSchema)", () => {
+  it.each(["0812345678", "081234567890", "0812345678901"])("accepts %s", (v) => {
+    expect(PHONE_PATTERN.test(v)).toBe(true);
+  });
+  it.each(["081234567", "08123456789012", "0812-3456-789", "+6281234567"])(
+    "rejects %s",
+    (v) => {
+      expect(PHONE_PATTERN.test(v)).toBe(false);
+    }
+  );
 });
