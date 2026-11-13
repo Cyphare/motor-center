@@ -61,7 +61,7 @@ export const SERVICE_STATUS_FLOW: ServiceStatus[] = [
 // Must mirror backend/src/constants/index.ts ALLOWED_STATUS_TRANSITIONS exactly.
 export const ALLOWED_TRANSITIONS: Record<ServiceStatus, ServiceStatus[]> = {
   Antre: ["Diperiksa", "Dibatalkan"],
-  Diperiksa: ["Dikerjakan"],
+  Diperiksa: ["Dikerjakan", "Dibatalkan"],
   Dikerjakan: ["Selesai"],
   Selesai: ["Diambil"],
   Diambil: [],
@@ -154,6 +154,31 @@ export interface Part {
   isLowStock?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type StockMovementType = "restock" | "usage" | "return" | "adjust";
+
+export interface StockMovementUserRef {
+  _id: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface StockMovementBookingRef {
+  _id: string;
+  bookingNumber: string;
+}
+
+export interface StockMovement {
+  _id: string;
+  partId: string;
+  type: StockMovementType;
+  quantity: number;
+  stockAfter: number;
+  bookingId?: PopulatedRef<StockMovementBookingRef>;
+  userId: PopulatedRef<StockMovementUserRef>;
+  note?: string;
+  createdAt: string;
 }
 
 export interface Service {

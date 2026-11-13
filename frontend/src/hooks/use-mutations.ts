@@ -19,7 +19,11 @@ import type {
   CreateWalkInBookingPayload,
   UpdateStatusPayload,
 } from "@/services/bookings";
-import type { CreatePartPayload, UpdatePartPayload } from "@/services/parts";
+import type {
+  CreatePartPayload,
+  RestockPartPayload,
+  UpdatePartPayload,
+} from "@/services/parts";
 import type {
   CreateServicePayload,
   UpdateServicePayload,
@@ -246,6 +250,22 @@ export function useUpdatePart() {
       void queryClient.invalidateQueries({ queryKey: ["parts"] });
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
       toast.success("Suku cadang berhasil diperbarui");
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+export function useRestockPart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: RestockPartPayload }) =>
+      partsService.restock(id, data),
+    onSuccess: (part, variables) => {
+      void queryClient.invalidateQueries({ queryKey: ["parts"] });
+      void queryClient.invalidateQueries({ queryKey: ["reports"] });
+      toast.success(
+        `Stok ${part.name} berhasil ditambah sebanyak ${variables.data.quantity} ${part.unit}`
+      );
     },
     onError: (error) => toast.error(errorMessage(error)),
   });

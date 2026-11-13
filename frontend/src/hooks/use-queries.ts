@@ -8,7 +8,7 @@ import * as servicesService from "@/services/services";
 import * as usersService from "@/services/users";
 import * as reportsService from "@/services/reports";
 import type { BookingListQuery } from "@/services/bookings";
-import type { PartListQuery } from "@/services/parts";
+import type { PartListQuery, PartMovementsQuery } from "@/services/parts";
 import type { ServiceListQuery } from "@/services/services";
 import type { UserListQuery } from "@/services/users";
 import type { RevenueQuery } from "@/services/reports";
@@ -116,6 +116,18 @@ export function useLowStockParts(enabled = true) {
     queryKey: queryKeys.lowStock(),
     queryFn: () => partsService.lowStock(),
     enabled,
+  });
+}
+
+export function usePartMovements(
+  id: string | undefined,
+  query: PartMovementsQuery = {},
+  enabled = true
+) {
+  return useQuery({
+    queryKey: queryKeys.partMovements(id ?? "", query),
+    queryFn: () => partsService.movements(id as string, query),
+    enabled: Boolean(id) && enabled,
   });
 }
 

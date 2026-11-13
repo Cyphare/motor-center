@@ -232,7 +232,11 @@ export default function StaffBookingDetailPage() {
         open={confirmCancel}
         onOpenChange={setConfirmCancel}
         title={`Batalkan ${booking.bookingNumber}?`}
-        description="Tiket yang dibatalkan tidak bisa dilanjutkan lagi."
+        description={
+          booking.partsUsed.length > 0
+            ? "Tiket yang dibatalkan tidak bisa dilanjutkan lagi. Seluruh suku cadang yang terpasang akan otomatis dikembalikan ke stok gudang."
+            : "Tiket yang dibatalkan tidak bisa dilanjutkan lagi."
+        }
         confirmLabel="Batalkan tiket"
         cancelLabel="Kembali"
         destructive
