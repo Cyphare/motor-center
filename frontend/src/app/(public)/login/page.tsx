@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -49,17 +48,15 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Masuk</CardTitle>
-          <CardDescription>
-            Masuk ke akun MotorCenter Anda untuk melanjutkan.
-          </CardDescription>
+    <main className="flex flex-1 justify-center px-4 py-14 sm:py-20">
+      <Card className="w-full max-w-sm border-0 bg-transparent">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="font-display text-4xl font-bold uppercase">Masuk</CardTitle>
+          
         </CardHeader>
         <Form {...form}>
           <form onSubmit={onSubmit}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-0">
               <FormField
                 control={form.control}
                 name="email"
@@ -75,11 +72,11 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </CardContent>
-            <CardFooter className="flex flex-col items-stretch gap-4">
+            <CardFooter className="flex flex-col items-stretch gap-4 px-0">
               <Button type="submit" disabled={login.isPending}>
                 {login.isPending ? "Memproses..." : "Masuk"}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Belum punya akun?{" "}
                 <Link
                   href="/register"

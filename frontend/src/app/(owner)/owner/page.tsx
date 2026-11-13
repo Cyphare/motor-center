@@ -1,36 +1,31 @@
 "use client";
 
-import {
-  Banknote,
-  CalendarRange,
-  CheckCircle2,
-  ClipboardList,
-  AlertTriangle,
-} from "lucide-react";
+import Link from "next/link";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { Section } from "@/components/section";
 import { StatCard } from "@/components/stat-card";
+import { StatusBadge } from "@/components/status-badge";
 import { DataTable } from "@/components/data-table";
-import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { useDashboard } from "@/hooks/use-queries";
 import { formatRupiah } from "@/lib/format";
 import type { DashboardLowStockPart } from "@/types/api";
+
+const ACTIVE = ["Antre", "Diperiksa", "Dikerjakan"] as const;
 
 export default function OwnerDashboardPage() {
   const { data, isLoading, isError, error, refetch } = useDashboard();
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:py-8">
       <PageHeader
-        title="Dasbor Pemilik"
-        description="Ringkasan omzet, tiket aktif, dan stok suku cadang hari ini (zona waktu WIB)."
+        title="Dasbor"
+        description={data ? `Per ${data.date}, WIB` : undefined}
       />
 
-      <div className="mt-8">
+      <div className="mt-6">
         {isLoading ? (
           <TableSkeleton rows={4} columns={2} />
         ) : isError ? (
@@ -39,111 +34,97 @@ export default function OwnerDashboardPage() {
             onRetry={() => refetch()}
           />
         ) : data ? (
-          <div className="space-y-8">
-            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-10">
+            <div className="grid grid-cols-2 gap-y-6 border-b pb-6 lg:grid-cols-4 lg:divide-x">
               <StatCard
-                label="Omzet Hari Ini"
+                label="Omzet hari ini"
                 value={formatRupiah(data.revenueToday)}
-                icon={<Banknote className="h-4 w-4" />}
-                hint={`Per ${data.date} (WIB)`}
+                className="pr-4"
               />
               <StatCard
-                label="Omzet Bulan Ini"
+                label="Omzet bulan ini"
                 value={formatRupiah(data.revenueMonth)}
-                icon={<CalendarRange className="h-4 w-4" />}
+                className="pr-4 lg:pl-6"
               />
               <StatCard
-                label="Selesai Hari Ini"
+                label="Selesai hari ini"
                 value={data.completedToday}
-                icon={<CheckCircle2 className="h-4 w-4" />}
-                hint="Tiket yang diselesaikan hari ini"
+                hint="tiket"
+                className="pr-4 lg:pl-6"
               />
               <StatCard
-                label="Stok Menipis"
+                label="Stok menipis"
                 value={data.lowStockParts.length}
-                icon={<AlertTriangle className="h-4 w-4" />}
-                hint="Jenis suku cadang di bawah batas"
+                hint="jenis suku cadang"
+                className="lg:pl-6"
               />
-            </section>
+            </div>
 
-            <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <ClipboardList className="h-4 w-4" />
-                Tiket Aktif
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <StatCard label="Antre" value={data.activeTickets.Antre} />
-                <StatCard
-                  label="Diperiksa"
-                  value={data.activeTickets.Diperiksa}
-                />
-                <StatCard
-                  label="Dikerjakan"
-                  value={data.activeTickets.Dikerjakan}
-                />
+            <Section title="Tiket aktif">
+              <div className="grid grid-cols-3 sm:max-w-xl">
+                {ACTIVE.map((status) => (
+                  <div key={status} className="space-y-1">
+                    <StatusBadge status={status} />
+                    <p className="font-display text-3xl font-bold tabular-nums">
+                      {data.activeTickets[status]}
+                    </p>
+                  </div>
+                ))}
               </div>
-            </section>
+            </Section>
 
-            <section>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    Suku Cadang Menipis
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {data.lowStockParts.length === 0 ? (
-                    <EmptyState
-                      title="Stok aman"
-                      description="Tidak ada suku cadang yang berada di bawah batas minimum."
-                    />
-                  ) : (
-                    <DataTable<DashboardLowStockPart>
-                      columns={[
-                        {
-                          key: "code",
-                          header: "Kode",
-                          cell: (part) => (
-                            <span className="font-mono text-xs">
-                              {part.code}
-                            </span>
-                          ),
-                        },
-                        {
-                          key: "name",
-                          header: "Nama",
-                          cell: (part) => part.name,
-                        },
-                        {
-                          key: "stock",
-                          header: "Stok",
-                          cell: (part) => (
-                            <span className="flex items-center gap-2">
-                              {part.stock} {part.unit}
-                              <Badge
-                                variant="outline"
-                                className="border-red-200 bg-red-50 text-red-700"
-                              >
-                                <AlertTriangle className="mr-1 h-3 w-3" />
-                                Menipis
-                              </Badge>
-                            </span>
-                          ),
-                        },
-                        {
-                          key: "minStock",
-                          header: "Min",
-                          cell: (part) => part.minStock,
-                        },
-                      ]}
-                      rows={data.lowStockParts}
-                      getRowId={(part) => part._id}
-                    />
-                  )}
-                </CardContent>
-              </Card>
-            </section>
+            <Section
+              title="Suku cadang menipis"
+              actions={
+                <Link
+                  href="/owner/low-stock"
+                  className="text-xs font-medium underline underline-offset-4 hover:text-primary"
+                >
+                  Lihat semua
+                </Link>
+              }
+            >
+              {data.lowStockParts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Semua stok di atas batas minimum.
+                </p>
+              ) : (
+                <DataTable<DashboardLowStockPart>
+                  columns={[
+                    {
+                      key: "code",
+                      header: "Kode",
+                      cell: (part) => (
+                        <span className="font-mono text-xs">{part.code}</span>
+                      ),
+                    },
+                    { key: "name", header: "Nama", cell: (part) => part.name },
+                    {
+                      key: "stock",
+                      header: "Stok",
+                      className: "text-right",
+                      cell: (part) => (
+                        <span className="font-semibold tabular-nums text-destructive">
+                          {part.stock} {part.unit}
+                        </span>
+                      ),
+                    },
+                    {
+                      key: "minStock",
+                      header: "Minimum",
+                      className: "text-right",
+                      cell: (part) => (
+                        <span className="tabular-nums text-muted-foreground">
+                          {part.minStock}
+                        </span>
+                      ),
+                    },
+                  ]}
+                  rows={data.lowStockParts}
+                  getRowId={(part) => part._id}
+                />
+              )}
+            </Section>
           </div>
         ) : null}
       </div>

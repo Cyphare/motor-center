@@ -3,9 +3,10 @@
 import * as React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Pencil, Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Indicator } from "@/components/indicator";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,6 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Badge } from "@/components/ui/badge";
 import { useParts } from "@/hooks/use-queries";
 import {
   useCreatePart,
@@ -90,7 +90,6 @@ export default function StaffPartsPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Suku Cadang"
-        description="Kelola stok, harga, dan status aktif suku cadang bengkel."
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
@@ -130,13 +129,7 @@ export default function StaffPartsPage() {
                   <span className="flex items-center gap-2">
                     {part.stock} {part.unit}
                     {part.isActive && isLowStock(part) && (
-                      <Badge
-                        variant="outline"
-                        className="border-red-200 bg-red-50 text-red-700"
-                      >
-                        <AlertTriangle className="mr-1 h-3 w-3" />
-                        Stok menipis
-                      </Badge>
+                      <Indicator tone="danger">Menipis</Indicator>
                     )}
                   </span>
                 ),
@@ -156,19 +149,9 @@ export default function StaffPartsPage() {
                 header: "Status",
                 cell: (part) =>
                   part.isActive ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                    >
-                      Aktif
-                    </Badge>
+                    <Indicator tone="success">Aktif</Indicator>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-slate-200 bg-slate-100 text-slate-600"
-                    >
-                      Nonaktif
-                    </Badge>
+                    <Indicator tone="muted">Nonaktif</Indicator>
                   ),
               },
               {

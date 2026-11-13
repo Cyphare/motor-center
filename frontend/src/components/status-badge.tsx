@@ -1,25 +1,31 @@
 import type { ServiceStatus } from "@/types/api";
-import { Badge } from "@/components/ui/badge";
+import { getStatusMeta } from "@/lib/status-meta";
 import { cn } from "@/lib/utils";
-
-const STATUS_STYLES: Record<ServiceStatus, string> = {
-  Antre: "bg-slate-100 text-slate-700 border-slate-200",
-  Diperiksa: "bg-amber-100 text-amber-800 border-amber-200",
-  Dikerjakan: "bg-blue-100 text-blue-800 border-blue-200",
-  Selesai: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  Diambil: "bg-green-600 text-white border-green-600",
-  Dibatalkan: "bg-red-100 text-red-800 border-red-200",
-};
 
 export interface StatusBadgeProps {
   status: ServiceStatus;
   className?: string;
 }
 
+/**
+ * Status as a small colored square plus the label, in the status color.
+ * Deliberately plain: it sits in dense rows and tables, so no pill or icon.
+ */
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+  const meta = getStatusMeta(status);
   return (
-    <Badge variant="outline" className={cn(STATUS_STYLES[status], className)}>
-      {status}
-    </Badge>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold",
+        meta.textClass,
+        className
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn("h-2 w-2 shrink-0 rounded-[1px]", meta.solidClass)}
+      />
+      {meta.label}
+    </span>
   );
 }

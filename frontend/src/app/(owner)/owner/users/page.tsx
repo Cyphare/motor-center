@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Indicator } from "@/components/indicator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,7 +36,6 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Badge } from "@/components/ui/badge";
 import { RoleGuard } from "@/components/guards/role-guard";
 import { useAuth } from "@/hooks/use-auth";
 import { useUsers } from "@/hooks/use-queries";
@@ -126,8 +126,7 @@ function UsersManagement() {
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
       <PageHeader
-        title="Manajemen Pengguna"
-        description="Buat akun staf, cari pengguna, dan aktif/nonaktifkan akun."
+        title="Pengguna"
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
@@ -212,7 +211,7 @@ function UsersManagement() {
                 key: "role",
                 header: "Peran",
                 cell: (user) => (
-                  <Badge variant="outline">{roleLabel(user.role)}</Badge>
+                  <span>{roleLabel(user.role)}</span>
                 ),
               },
               {
@@ -220,19 +219,9 @@ function UsersManagement() {
                 header: "Status",
                 cell: (user) =>
                   user.isActive ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                    >
-                      Aktif
-                    </Badge>
+                    <Indicator tone="success">Aktif</Indicator>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-slate-200 bg-slate-100 text-slate-600"
-                    >
-                      Nonaktif
-                    </Badge>
+                    <Indicator tone="muted">Nonaktif</Indicator>
                   ),
               },
               {

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Indicator } from "@/components/indicator";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,6 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Badge } from "@/components/ui/badge";
 import { useServices } from "@/hooks/use-queries";
 import {
   useCreateService,
@@ -82,7 +82,6 @@ export default function StaffServicesPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Layanan"
-        description="Kelola katalog dan status aktif layanan servis bengkel."
         actions={
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
@@ -123,19 +122,9 @@ export default function StaffServicesPage() {
                 header: "Status",
                 cell: (service) =>
                   service.isActive ? (
-                    <Badge
-                      variant="outline"
-                      className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                    >
-                      Aktif
-                    </Badge>
+                    <Indicator tone="success">Aktif</Indicator>
                   ) : (
-                    <Badge
-                      variant="outline"
-                      className="border-slate-200 bg-slate-100 text-slate-600"
-                    >
-                      Nonaktif
-                    </Badge>
+                    <Indicator tone="muted">Nonaktif</Indicator>
                   ),
               },
               {
