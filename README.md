@@ -1,21 +1,5 @@
 # MotorCenter - Motorcycle Workshop & Inventory Management System
 
-> [!IMPORTANT]
-> **Branch: `with-dummy-data` (Mode Demo Langsung / Out-of-the-Box Demo)**  
-> Cabang ini **langsung siap dijalankan tanpa perlu konfigurasi MongoDB eksternal**. Menjalankan `pnpm run dev` pada direktori `backend/` akan otomatis mem-boot instance MongoDB in-memory dan menginjeksi seluruh **data dummy & akun bawaan**.
-> 
-> ```bash
-> # Terminal 1 - Backend (In-Memory + Pre-seeded Dummy Data)
-> cd backend
-> pnpm install
-> pnpm run dev
-> 
-> # Terminal 2 - Frontend (Next.js)
-> cd frontend
-> pnpm install
-> pnpm run dev
-> ```
-
 Final Project for **Web Application Development (Pengembangan Aplikasi Web - TKIF262402)**  
 **Milestone 1: Backend Engineering & API Specification**  
 Department of Electrical Engineering and Information Technology, Faculty of Engineering, Universitas Gadjah Mada.
@@ -98,6 +82,7 @@ bengkel-motor-6/
 │   │   │   ├── counter.model.ts    # Atomic daily sequence counter collection
 │   │   │   ├── part.model.ts       # Spare parts schema with low-stock indicator
 │   │   │   ├── service.model.ts    # Service packages schema
+│   │   │   ├── stockMovement.model.ts # Stock movement audit ledger schema
 │   │   │   └── user.model.ts       # User account schema with bcrypt hashing & tokenVersion
 │   │   ├── routes/
 │   │   │   ├── auth.routes.ts      # Authentication routes
@@ -110,7 +95,8 @@ bengkel-motor-6/
 │   │   │   └── user.routes.ts      # Staff and user management routes
 │   │   ├── services/
 │   │   │   ├── mail.service.ts     # Nodemailer notification service
-│   │   │   └── pdf.service.ts      # PDFKit invoice generator
+│   │   │   ├── pdf.service.ts      # PDFKit invoice generator
+│   │   │   └── stock.service.ts    # Atomic stock adjustments & low-stock alerts
 │   │   ├── types/
 │   │   │   └── express.d.ts        # Express Request type augmentations
 │   │   ├── utils/
@@ -123,6 +109,7 @@ bengkel-motor-6/
 │   │   │   ├── auth.validation.ts  # Schemas for auth and password change
 │   │   │   ├── booking.validation.ts # Schemas for service ticket workflows
 │   │   │   ├── catalog.validation.ts # Schemas for services and parts
+│   │   │   ├── common.validation.ts # Shared phone validation schema
 │   │   │   ├── report.validation.ts # Schemas for revenue query parameters
 │   │   │   └── user.validation.ts  # Schemas for staff management
 │   │   ├── app.ts                  # Express application setup
@@ -132,7 +119,10 @@ bengkel-motor-6/
 │   ├── pnpm-lock.yaml              # Lockfile
 │   ├── tsconfig.json               # TypeScript compiler configuration
 │   └── vercel.json                 # Express deployment preset
+├── frontend/                       # Next.js App Router frontend
 ├── API_DOCUMENTATION.md            # Comprehensive API specification
+├── SETUP.md                        # Quick setup & database switch guide
+├── USAGE.md                        # Complete usage guide
 ├── .gitignore                      # Git ignored files configuration
 └── README.md                       # Project documentation
 ```
@@ -144,7 +134,7 @@ bengkel-motor-6/
 ### 1. Prerequisites
 * **Node.js**: `>= 20.x` (Tested on Node.js v24.x)
 * **pnpm**: `>= 9.x` (`npm install -g pnpm`)
-* Internet connection for MongoDB Atlas access.
+* Internet connection for MongoDB Atlas access (or use `pnpm run dev:memory` for an instant pre-seeded in-memory MongoDB session).
 
 ### 2. Dependency Installation
 Navigate to the `backend/` directory and install dependencies:
@@ -175,6 +165,10 @@ pnpm run seed
 * **Development Mode (with auto-reload via `tsx`)**:
   ```bash
   pnpm run dev
+  ```
+* **Instant Demo Mode (in-memory MongoDB with pre-seeded data)**:
+  ```bash
+  pnpm run dev:memory
   ```
 * **Production Build**:
   ```bash
