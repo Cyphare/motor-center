@@ -5,6 +5,7 @@ import {
   nextJakartaDay,
   startOfJakartaDay,
 } from '../utils/jakartaDate';
+import {phoneSchema} from './common.validation';
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -70,11 +71,7 @@ export const createWalkInBookingSchema = z.object({
       .trim()
       .min(2, 'Nama pelanggan minimal 2 karakter')
       .max(100, 'Nama pelanggan maksimal 100 karakter'),
-    customerPhone: z
-      .string({ error: 'Nomor telepon pelanggan wajib diisi' })
-      .trim()
-      .min(8, 'Nomor telepon minimal 8 karakter')
-      .max(20, 'Nomor telepon maksimal 20 karakter'),
+    customerPhone: phoneSchema,
     plateNumber: z
       .string({ error: 'Nomor plat kendaraan wajib diisi' })
       .trim()

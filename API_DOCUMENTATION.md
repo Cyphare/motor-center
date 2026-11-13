@@ -93,6 +93,8 @@ Memeriksa status operasional server backend dan status konektivitas basis data M
 ### `POST /api/auth/register`
 Pendaftaran mandiri akun pelanggan baru. Dilindungi oleh *rate limiter* autentikasi (`20` permintaan / `15` menit per IP).
 * **Hak Akses**: Publik.
+* **Validasi**: `phone` wajib berisi 10 sampai 13 digit angka saja, tanpa `+`, spasi, atau tanda hubung (contoh: `081298761234`). Aturan yang sama berlaku untuk `PUT /api/auth/me`, `POST /api/users`, dan `customerPhone` pada `POST /api/bookings/walk-in`.
+* **Galat**: `400` (validasi gagal), `409` (email sudah terdaftar).
 * **Request Body**:
 ```json
 {
@@ -125,6 +127,9 @@ Pendaftaran mandiri akun pelanggan baru. Dilindungi oleh *rate limiter* autentik
 ### `POST /api/auth/login`
 Autentikasi kredensial pengguna (email & password). Dilindungi oleh *rate limiter* autentikasi (`20` permintaan / `15` menit per IP).
 * **Hak Akses**: Publik.
+* **Galat**:
+  * `401 Unauthorized`: email tidak terdaftar atau kata sandi salah, dengan pesan generik yang sama (`"Alamat email atau kata sandi tidak valid"`) untuk mencegah enumerasi akun.
+  * `403 Forbidden`: kredensial benar tetapi akun dinonaktifkan oleh admin. Status akun hanya diperiksa setelah kata sandi terverifikasi, sehingga pihak yang tidak mengetahui kata sandi selalu menerima `401`.
 * **Request Body**:
 ```json
 {
@@ -182,7 +187,7 @@ Memperbarui nama dan/atau nomor telepon profil pengguna yang sedang login.
 ```
 
 ### `PUT /api/auth/change-password`
-Mengganti kata sandi akun yang sedang login dan menaikkan `tokenVersion` pengguna sehingga seluruh token JWT sebelumnya langsung tidak berlaku (`401 Unauthorized`).
+Mengganti kata sandi akun yang sedang login dan menaikkan `tokenVersion` pengguna sehingga seluruh token JWT sebelumnya langsung tidak berlaku (`401 Unauthorized`). Respons memuat `accessToken` baru dengan `tokenVersion` terbaru, sehingga perangkat yang melakukan penggantian tetap masuk.
 * **Hak Akses**: Semua peran yang terautentikasi (`Bearer Token`).
 * **Request Body**:
 ```json
@@ -191,6 +196,18 @@ Mengganti kata sandi akun yang sedang login dan menaikkan `tokenVersion` penggun
   "newPassword": "newPassword456"
 }
 ```
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Kata sandi berhasil diperbarui.",
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+* **Catatan Frontend**: klien **wajib** mengganti token yang tersimpan dengan `data.accessToken`. Token lama, termasuk yang dipakai untuk request ini, akan ditolak `401` pada request berikutnya.
+* **Galat**: `400` (kata sandi baru sama dengan yang lama atau kurang dari 6 karakter), `401` (kata sandi lama salah atau token tidak valid).
 
 ---
 
@@ -311,6 +328,13 @@ Mengambil detail profil akun pengguna berdasarkan ID dokumen MongoDB.
 ### `PATCH /api/users/:id/status`
 Mengaktifkan atau menonaktifkan akun pengguna. Backend menolak penonaktifan akun milik sendiri maupun penonaktifan satu-satunya akun `admin` yang masih aktif (`400 Bad Request`).
 * **Hak Akses**: `admin`.
+* **Request Body**:
+```json
+{
+  "isActive": false
+}
+```
+* **Pencabutan Sesi**: saat akun dinonaktifkan, `tokenVersion` pengguna dinaikkan. Seluruh token milik pengguna tersebut ditolak `401` dan **tetap tidak berlaku** meskipun akun diaktifkan kembali; pengguna harus login ulang. Mengaktifkan akun tidak mengubah `tokenVersion`.
 
 ---
 
@@ -391,9 +415,11 @@ Pelanggan terdaftar melakukan booking servis daring. Nomor tiket `MC-YYYYMMDD-XX
   "plateNumber": "AB 1234 GA",
   "motorModel": "Honda Vario 160 ABS",
   "complaint": "Tarikan awal gredeg dan rem depan kurang pakem",
+  "serviceId": "674a95a1c45e89a1b2c3d501",
   "serviceDate": "2026-10-01T08:30:00.000Z"
 }
 ```
+* **Galat**: `400` (validasi gagal), `404` (`serviceId` tidak ditemukan atau layanan sedang nonaktif). `serviceId` bersifat opsional.
 * **Sample Response (201 Created)**:
 ```json
 {
@@ -438,6 +464,7 @@ Kasir/Admin mencatat kendaraan yang datang langsung ke bengkel.
   "serviceFee": 45000
 }
 ```
+* **Galat**: `400` (validasi gagal, termasuk `customerPhone` yang bukan 10–13 digit angka, atau mekanik tidak valid/nonaktif), `404` (`serviceId` tidak ditemukan atau layanan sedang nonaktif).
 * **Sample Response (201 Created)**:
 ```json
 {
@@ -482,8 +509,10 @@ Menugaskan mekanik penanggung jawab ke tiket servis.
 ```
 
 ### `PUT /api/bookings/:id/status`
-Memperbarui status pengerjaan tiket servis secara bertahap (`Antre` $\rightarrow$ `Diperiksa` $\rightarrow$ `Dikerjakan` $\rightarrow$ `Selesai` $\rightarrow$ `Diambil`, atau pembatalan `Antre` $\rightarrow$ `Dibatalkan`).
+Memperbarui status pengerjaan tiket servis secara bertahap (`Antre` $\rightarrow$ `Diperiksa` $\rightarrow$ `Dikerjakan` $\rightarrow$ `Selesai` $\rightarrow$ `Diambil`, atau pembatalan dari `Antre` maupun `Diperiksa` $\rightarrow$ `Dibatalkan`).
 * **Hak Akses**: `admin`, `kasir`, `mekanik` (khusus tiket tugasnya). Pembatalan tiket (`Dibatalkan`), pelunasan/serah-terima (`Diambil`), serta penetapan/perubahan `serviceFee` dibatasi hanya untuk `admin` dan `kasir` (`mekanik` mendapat `403 Forbidden`).
+* **Pembatalan dan Pengembalian Stok**: seluruh perubahan dijalankan dalam satu transaksi MongoDB. Saat tiket dibatalkan, setiap item pada `partsUsed` dikembalikan ke stok gudang dengan `$inc` atomik, `partsUsed` dikosongkan, `partsTotalCost` menjadi `0`, dan `grandTotal` disamakan dengan `serviceFee`. Jika salah satu suku cadang sudah tidak ada di katalog, seluruh transaksi dibatalkan (`404`) dan tidak ada data yang berubah. Tiket berstatus `Dikerjakan` atau sesudahnya tidak dapat dibatalkan (`400`).
+* **Email**: notifikasi "siap diambil" untuk booking online dikirim setelah transaksi tersimpan, sehingga tidak terkirim ganda dan tidak terkirim bila penyimpanan gagal.
 * **Request Body**:
 ```json
 {
@@ -597,8 +626,8 @@ Mengambil daftar seluruh suku cadang aktif (atau seluruhnya termasuk nonaktif).
 ```
 
 ### `GET /api/parts/low-stock`
-Mengambil daftar suku cadang yang stoknya berada pada atau di bawah batas minimum (`stock <= minStock`). Digunakan untuk peringatan restok gudang.
-* **Hak Akses**: `admin`, `pemilik`.
+Mengambil daftar suku cadang yang stoknya berada pada atau di bawah batas minimum (`stock <= minStock`). Digunakan untuk peringatan restok gudang dan badge jumlah stok kritis di dasbor staf maupun pemilik.
+* **Hak Akses**: `admin`, `kasir`, `pemilik`.
 * **Sample Response (200 OK)**:
 ```json
 {
@@ -676,6 +705,7 @@ Menambahkan data suku cadang baru ke master inventaris.
 ### `PUT /api/parts/:id`
 Memperbarui informasi suku cadang (harga, nama, satuan, stok, atau batas minimum). Field `stock` di sini **menimpa** nilai stok, sehingga hanya cocok untuk koreksi hasil *stock opname*. Untuk penerimaan barang masuk, gunakan `PATCH /api/parts/:id/restock`.
 * **Hak Akses**: `admin`, `kasir`.
+* **Mutasi Stok**: jika `stock` berbeda dari nilai sekarang, selisihnya dicatat sebagai mutasi `adjust` (catatan `"Koreksi stok (stock opname)"`) dalam transaksi yang sama. Perubahan field lain tanpa mengubah stok tidak membuat mutasi. Bila koreksi membuat stok turun dari atas `minStock` ke `minStock` atau di bawahnya, email peringatan stok menipis dikirim (lihat *Email otomatis*).
 * **Sample Response (200 OK)**:
 ```json
 {
@@ -699,7 +729,7 @@ Menambah stok suku cadang secara **atomik** (`$inc`) saat barang masuk dari pema
 * **Hak Akses**: `admin`, `kasir`.
 * **Request Body** (field lain ditolak):
   * `quantity` (Number, Wajib): bilangan bulat, minimal `1`. String seperti `"5"` ditolak.
-  * `note` (String, Opsional): catatan restock, maksimal 200 karakter. Saat ini divalidasi tetapi belum disimpan.
+  * `note` (String, Opsional): catatan restock, maksimal 200 karakter. Disimpan pada catatan mutasi stok `restock` (lihat `GET /api/parts/:id/movements`).
 ```json
 {
   "quantity": 20,
@@ -725,6 +755,53 @@ Menambah stok suku cadang secara **atomik** (`$inc`) saat barang masuk dari pema
 }
 ```
 * **Galat**: `400` (id atau body tidak valid), `401` (tanpa token atau token tidak valid), `403` (peran selain admin/kasir), `404` (suku cadang tidak ditemukan atau nonaktif).
+
+### `GET /api/parts/:id/movements`
+Riwayat mutasi stok satu suku cadang (FR-ADM-06), diurutkan dari yang terbaru. Setiap perubahan stok dicatat dalam transaksi yang sama dengan perubahannya, sehingga stok tidak pernah berubah tanpa catatan:
+
+| `type` | Sumber | `quantity` |
+| :--- | :--- | :--- |
+| `restock` | `PATCH /api/parts/:id/restock` | positif |
+| `usage` | `POST /api/bookings/:id/parts` | negatif |
+| `return` | `DELETE /api/bookings/:id/parts/:partItemId`, atau pembatalan tiket (`PUT /api/bookings/:id/status` ke `Dibatalkan`) | positif |
+| `adjust` | koreksi `stock` lewat `PUT /api/parts/:id` | selisih, positif atau negatif |
+
+* **Hak Akses**: `admin`, `kasir`, `pemilik`.
+* **Query Params** (semua opsional):
+  * `type`: salah satu `restock`, `usage`, `return`, `adjust`.
+  * `startDate`, `endDate`: `YYYY-MM-DD`, dihitung per hari WIB. `startDate` tidak boleh setelah `endDate`.
+  * `page` (default `1`), `limit` (default `20`, maksimal `100`).
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Riwayat mutasi stok berhasil diambil",
+  "data": [
+    {
+      "_id": "674b10a1c45e89a1b2c3d601",
+      "partId": "674a94a1c45e89a1b2c3d501",
+      "type": "usage",
+      "quantity": -2,
+      "stockAfter": 13,
+      "bookingId": { "_id": "674a93b2c45e89a1b2c3d4f2", "bookingNumber": "MC-20260929-0002" },
+      "userId": { "_id": "674a91b2c45e89a1b2c3d4e2", "name": "Budi Santoso", "role": "mekanik" },
+      "createdAt": "2026-09-29T09:15:00.000Z"
+    },
+    {
+      "_id": "674b0f11c45e89a1b2c3d600",
+      "partId": "674a94a1c45e89a1b2c3d501",
+      "type": "restock",
+      "quantity": 5,
+      "stockAfter": 15,
+      "userId": { "_id": "674a91b2c45e89a1b2c3d4e1", "name": "Siti Kasir", "role": "kasir" },
+      "note": "Kiriman pemasok",
+      "createdAt": "2026-09-29T08:00:00.000Z"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 2, "totalPages": 1 }
+}
+```
+* **Galat**: `400` (id, `type`, atau tanggal tidak valid), `401`, `403` (mekanik dan pelanggan), `404` (suku cadang tidak ditemukan).
 
 ### `DELETE /api/parts/:id`
 Menonaktifkan suku cadang (*soft delete*) dengan mengubah `isActive: false` tanpa merusak riwayat transaksi servis masa lalu.
@@ -876,6 +953,10 @@ Omzet dihitung hanya dari tiket berstatus `Diambil`, memakai `pickedUpAt` serta 
 
 Booking online mengirim konfirmasi ke email akun pelanggan. Saat tiket online menjadi `Selesai`, email kedua memuat estimasi jasa, part, dan total. Tiket walk-in tidak mengirim email. Tanpa konfigurasi SMTP, backend memakai Ethereal dan mencatat URL pratinjau; isi `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, dan `SMTP_FROM` bersama untuk pengiriman nyata. Kegagalan email dicatat setelah tiket tersimpan dan tidak mengubah respons sukses; tidak ada pengiriman ulang otomatis.
 
+**Peringatan stok menipis (FR-OWN-04).** Saat pemakaian suku cadang di tiket (`POST /api/bookings/:id/parts`) atau koreksi stok (`PUT /api/parts/:id`) membuat stok turun dari **di atas** `minStock` menjadi `minStock` atau di bawahnya, satu email (HTML dan teks biasa) dikirim ke seluruh akun `pemilik` dan `admin` yang aktif. Pemakaian berikutnya selama stok masih di bawah batas tidak mengirim email lagi. Peringatan baru muncul kembali setelah stok naik di atas `minStock` (misalnya lewat restock) lalu turun lagi. Email dikirim setelah transaksi tersimpan, dan kegagalannya hanya dicatat di log tanpa membatalkan pemakaian atau koreksi stok.
+
+Pada `NODE_ENV=test`, email tidak pernah dikirim, termasuk saat SMTP terisi di `.env`. Email ditampung di `testOutbox` (`mail.service.ts`) untuk diperiksa oleh integration test.
+
 ---
 
 ## 8. Ringkasan Kode Galat HTTP (HTTP Error Codes)
@@ -884,8 +965,8 @@ Booking online mengirim konfirmasi ke email akun pelanggan. Saat tiket online me
 | :---: | :--- | :--- |
 | **`400 Bad Request`** | Input schema Zod tidak valid, transisi status servis melompat, atau stok gudang kurang | `{"success": false, "message": "...", "errors": [...]}` |
 | **`401 Unauthorized`** | Header Authorization tidak ada, format token salah, atau sesi JWT telah kedaluwarsa / dicabut | `{"success": false, "message": "Akses ditolak: Autentikasi diperlukan"}` |
-| **`403 Forbidden`** | Peran (RBAC) tidak berhak (misal: Pelanggan panggil API Admin, atau Mekanik batalkan/ubah biaya jasa tiket) | `{"success": false, "message": "Akses ditolak: Peran tidak memiliki wewenang"}` |
-| **`404 Not Found`** | Rute endpoint tidak ada atau dokumen ID (user, booking, part) tidak ditemukan di database | `{"success": false, "message": "Data atau sumber daya tidak ditemukan"}` |
+| **`403 Forbidden`** | Peran (RBAC) tidak berhak (misal: Pelanggan panggil API Admin, atau Mekanik batalkan/ubah biaya jasa tiket), atau login dengan kredensial benar pada akun yang dinonaktifkan | `{"success": false, "message": "Akses ditolak: Peran tidak memiliki wewenang"}` |
+| **`404 Not Found`** | Rute endpoint tidak ada, dokumen ID (user, booking, part) tidak ditemukan di database, atau layanan servis yang dipilih saat booking tidak ada/nonaktif | `{"success": false, "message": "Data atau sumber daya tidak ditemukan"}` |
 | **`409 Conflict`** | Terjadi duplikasi data unik (misal: email atau kode part sudah pernah terdaftar di MongoDB) | `{"success": false, "message": "Data email sudah terdaftar"}` |
 | **`429 Too Many Requests`** | Batas *rate limit* IP terlampaui pada endpoint API umum atau autentikasi | `{"success": false, "message": "Terlalu banyak percobaan..."}` |
 | **`500 Internal Server Error`** | Galat sistem tak tertangani | `{"success": false, "message": "Terjadi kesalahan internal pada server"}` |

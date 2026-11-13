@@ -3,7 +3,6 @@ import mongoose, { Types } from 'mongoose';
 import { Booking, IBooking } from '../models/booking.model';
 import { User } from '../models/user.model';
 import { Service } from '../models/service.model';
-import { Part } from '../models/part.model';
 import { sendBookingEmail } from '../services/mail.service';
 import { writeInvoice } from '../services/pdf.service';
 import {
@@ -26,6 +25,8 @@ import {
   nextJakartaDay,
   startOfJakartaDay,
 } from '../utils/jakartaDate';
+import { changeStock, notifyLowStock } from '../services/stock.service';
+import { LowStockItem } from '../services/mail.service';
 
 const MAX_BOOKING_CREATE_ATTEMPTS = 5;
 
@@ -73,7 +74,7 @@ export const createOnlineBooking = async (
     if (serviceId) {
       const service = await Service.findById(serviceId);
       if (!service || !service.isActive) {
-        throw new BadRequestError('Layanan servis yang dipilih tidak ditemukan atau sedang tidak aktif');
+        throw new NotFoundError('Layanan servis yang dipilih tidak ditemukan atau sedang tidak aktif');
       }
       serviceName = service.name;
       initialServiceFee = service.estimatedPrice;
@@ -141,7 +142,7 @@ export const createWalkInBooking = async (
     if (serviceId) {
       const service = await Service.findById(serviceId);
       if (!service || !service.isActive) {
-        throw new BadRequestError('Layanan servis tidak valid atau tidak aktif');
+        throw new NotFoundError('Layanan servis tidak valid atau tidak aktif');
       }
       serviceName = service.name;
       if (serviceFee === undefined) {
@@ -393,74 +394,100 @@ export const updateStatus = async (
 ): Promise<void> => {
   try {
     if (!req.user) throw new UnauthorizedError();
-
+    const user = req.user;
     const { status: newStatus, mechanicNotes, serviceFee } = req.body;
-    const booking = await Booking.findById(req.params.id);
 
-    if (!booking) {
-      throw new NotFoundError('Tiket servis tidak ditemukan');
-    }
+    let booking!: IBooking;
+    await mongoose.connection.transaction(async (session) => {
+      const found = await Booking.findById(req.params.id).session(session);
+      if (!found) throw new NotFoundError('Tiket servis tidak ditemukan');
+      booking = found;
 
-    if (req.user.role === USER_ROLES.MEKANIK) {
-      if (!booking.mechanicId || !booking.mechanicId.equals(req.user.id)) {
-        throw new ForbiddenError(
-          'Anda hanya berwenang memperbarui status tiket yang ditugaskan kepada Anda'
+      if (user.role === USER_ROLES.MEKANIK) {
+        if (!booking.mechanicId || !booking.mechanicId.equals(user.id)) {
+          throw new ForbiddenError(
+            'Anda hanya berwenang memperbarui status tiket yang ditugaskan kepada Anda'
+          );
+        }
+        if (newStatus === SERVICE_STATUS.DIAMBIL) {
+          throw new ForbiddenError(
+            'Hanya admin atau kasir yang dapat mencatat pembayaran dan pengambilan motor'
+          );
+        }
+        if (newStatus === SERVICE_STATUS.DIBATALKAN) {
+          throw new ForbiddenError('Hanya admin atau kasir yang dapat membatalkan tiket servis');
+        }
+        if (serviceFee !== undefined) {
+          throw new ForbiddenError(
+            'Hanya admin atau kasir yang dapat menetapkan atau mengubah biaya jasa'
+          );
+        }
+      }
+
+      // Validate sequential status workflow (US1)
+      const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[booking.status] || [];
+      if (!allowedTransitions.includes(newStatus as ServiceStatus)) {
+        throw new BadRequestError(
+          `Transisi dari status '${booking.status}' ke '${newStatus}' tidak sah. Alur yang sah: Antre -> Diperiksa -> Dikerjakan -> Selesai -> Diambil`
         );
       }
-      if (newStatus === SERVICE_STATUS.DIAMBIL) {
-        throw new ForbiddenError(
-          'Hanya admin atau kasir yang dapat mencatat pembayaran dan pengambilan motor'
+
+      if (newStatus === SERVICE_STATUS.DIPERIKSA && !booking.mechanicId) {
+        throw new BadRequestError(
+          'Mekanik harus ditugaskan terlebih dahulu sebelum status diubah ke Diperiksa'
         );
       }
-      if (newStatus === SERVICE_STATUS.DIBATALKAN) {
-        throw new ForbiddenError('Hanya admin atau kasir yang dapat membatalkan tiket servis');
+
+      // FR-CASH-04: return every installed part to stock in the same transaction
+      if (newStatus === SERVICE_STATUS.DIBATALKAN && booking.partsUsed.length > 0) {
+        for (const item of booking.partsUsed) {
+          const part = await changeStock({
+            partId: item.partId,
+            delta: item.quantity,
+            type: 'return',
+            userId: user.id,
+            bookingId: booking._id,
+            note: `Tiket ${booking.bookingNumber} dibatalkan`,
+            session,
+          });
+          if (!part) {
+            throw new NotFoundError(
+              `Suku cadang '${item.name}' tidak ditemukan; stok tidak dapat dikembalikan`
+            );
+          }
+        }
+        booking.set('partsUsed', []);
+        booking.partsTotalCost = 0;
+        booking.grandTotal = booking.serviceFee;
       }
+
+      if (newStatus === SERVICE_STATUS.SELESAI) {
+        booking.completedAt = new Date();
+      } else if (newStatus === SERVICE_STATUS.DIAMBIL) {
+        booking.pickedUpAt = new Date();
+      }
+
+      if (mechanicNotes !== undefined) {
+        booking.mechanicNotes = mechanicNotes;
+      }
+
       if (serviceFee !== undefined) {
-        throw new ForbiddenError(
-          'Hanya admin atau kasir yang dapat menetapkan atau mengubah biaya jasa'
-        );
+        booking.serviceFee = serviceFee;
+        booking.grandTotal = booking.serviceFee + booking.partsTotalCost;
       }
-    }
 
-    // Validate sequential status workflow (US1)
-    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[booking.status] || [];
-    if (!allowedTransitions.includes(newStatus as ServiceStatus)) {
-      throw new BadRequestError(
-        `Transisi dari status '${booking.status}' ke '${newStatus}' tidak sah. Alur yang sah: Antre -> Diperiksa -> Dikerjakan -> Selesai -> Diambil`
-      );
-    }
+      booking.status = newStatus as ServiceStatus;
+      booking.statusHistory.push({
+        status: newStatus as ServiceStatus,
+        changedBy: new Types.ObjectId(user.id),
+        changedAt: new Date(),
+        notes: mechanicNotes || `Status diperbarui menjadi ${newStatus}`,
+      });
 
-    if (newStatus === SERVICE_STATUS.DIPERIKSA && !booking.mechanicId) {
-      throw new BadRequestError(
-        'Mekanik harus ditugaskan terlebih dahulu sebelum status diubah ke Diperiksa'
-      );
-    }
-
-    if (newStatus === SERVICE_STATUS.SELESAI) {
-      booking.completedAt = new Date();
-    } else if (newStatus === SERVICE_STATUS.DIAMBIL) {
-      booking.pickedUpAt = new Date();
-    }
-
-    if (mechanicNotes !== undefined) {
-      booking.mechanicNotes = mechanicNotes;
-    }
-
-    if (serviceFee !== undefined) {
-      booking.serviceFee = serviceFee;
-      booking.grandTotal = booking.serviceFee + booking.partsTotalCost;
-    }
-
-    booking.status = newStatus as ServiceStatus;
-    booking.statusHistory.push({
-      status: newStatus as ServiceStatus,
-      changedBy: new Types.ObjectId(req.user.id),
-      changedAt: new Date(),
-      notes: mechanicNotes || `Status diperbarui menjadi ${newStatus}`,
+      await booking.save({ session });
     });
 
-    await booking.save();
-
+    // Email is sent only after the transaction commits, so a retried callback cannot send twice
     if (
       newStatus === SERVICE_STATUS.SELESAI &&
       booking.bookingType === BOOKING_TYPE.ONLINE &&
@@ -491,7 +518,9 @@ export const addPartToBooking = async (
     const { partId, quantity } = req.body;
     let booking;
     let partName = '';
+    const lowStockAlerts: LowStockItem[] = [];
     await mongoose.connection.transaction(async (session) => {
+      lowStockAlerts.length = 0; // the driver may retry this callback
       booking = await Booking.findById(req.params.id).session(session);
       if (!booking) throw new NotFoundError('Tiket servis tidak ditemukan');
       if (
@@ -510,11 +539,16 @@ export const addPartToBooking = async (
           `Suku cadang hanya dapat ditambahkan pada status 'Diperiksa' atau 'Dikerjakan' (status saat ini: '${booking.status}')`
         );
       }
-      const part = await Part.findOneAndUpdate(
-        { _id: partId, stock: { $gte: quantity }, isActive: true },
-        { $inc: { stock: -quantity } },
-        { new: true, session }
-      );
+      const part = await changeStock({
+        partId,
+        delta: -quantity,
+        type: 'usage',
+        userId: req.user!.id,
+        requireActive: true,
+        session,
+        bookingId: booking._id,
+        lowStockAlerts,
+      });
       if (!part) {
         throw new BadRequestError(
           'Suku cadang tidak ditemukan, tidak aktif, atau jumlah stok di gudang tidak mencukupi'
@@ -534,6 +568,7 @@ export const addPartToBooking = async (
       booking.grandTotal = booking.serviceFee + booking.partsTotalCost;
       await booking.save({ session });
     });
+    await notifyLowStock(lowStockAlerts);
     sendSuccess(
       res,
       `Suku cadang '${partName}' (x${quantity}) berhasil ditambahkan ke tiket servis`,
@@ -577,11 +612,14 @@ export const removePartFromBooking = async (
       const index = booking.partsUsed.findIndex((item) => item._id?.toString() === partItemId);
       if (index === -1) throw new NotFoundError('Item suku cadang tidak ditemukan pada tiket servis ini');
       const removed = booking.partsUsed[index];
-      const part = await Part.findByIdAndUpdate(
-        removed.partId,
-        { $inc: { stock: removed.quantity } },
-        { new: true, session }
-      );
+      const part = await changeStock({
+        partId: removed.partId,
+        delta: removed.quantity,
+        type: 'return',
+        userId: req.user!.id,
+        session,
+        bookingId: booking._id,
+      });
       if (!part) throw new NotFoundError('Suku cadang asal tidak ditemukan; stok tidak dapat dikembalikan');
       removedName = removed.name;
       booking.partsUsed.splice(index, 1);

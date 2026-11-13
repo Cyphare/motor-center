@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { User } from '../models/user.model';
+import { User, IUser } from '../models/user.model';
 import { USER_ROLES } from '../constants';
 import { generateToken } from '../utils/jwt';
 import { sendCreated, sendSuccess } from '../utils/response';
-import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError } from '../utils/appError';
+import { BadRequestError, ConflictError, NotFoundError, UnauthorizedError, ForbiddenError} from '../utils/appError';
 
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -22,13 +22,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       phone,
     });
 
-    const token = generateToken({
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      tokenVersion: user.tokenVersion ?? 0,
-    });
+    const token = issueToken(user);
 
     sendCreated(res, 'Pendaftaran akun berhasil', {
       user,
@@ -48,22 +42,16 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       throw new UnauthorizedError('Alamat email atau kata sandi tidak valid');
     }
 
-    if (!user.isActive) {
-      throw new UnauthorizedError('Akun Anda dinonaktifkan. Silakan hubungi administrator bengkel');
-    }
-
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       throw new UnauthorizedError('Alamat email atau kata sandi tidak valid');
     }
 
-    const token = generateToken({
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      tokenVersion: user.tokenVersion ?? 0,
-    });
+    if (!user.isActive) {
+      throw new ForbiddenError('Akun Anda dinonaktifkan. Silakan hubungi administrator bengkel');
+    }
+
+    const token = issueToken(user);
 
     sendSuccess(res, 'Login berhasil', {
       user,
@@ -140,9 +128,20 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     user.password = newPassword;
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await user.save();
+    const token = issueToken(user);
 
-    sendSuccess(res, 'Kata sandi berhasil diperbarui. Silakan login kembali dengan sandi baru.');
+    sendSuccess(res, 'Kata sandi berhasil diperbarui.', {accessToken: token});
   } catch (error) {
     next(error);
   }
 };
+
+const issueToken = (user: IUser): string => 
+  generateToken({
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    tokenVersion: user.tokenVersion ?? 0,
+  })
+

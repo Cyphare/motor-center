@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { MOVEMENT_TYPE } from '../models/stockMovement.model';
+import { isValidIsoCalendarDate } from '../utils/jakartaDate';
 
 const name = z.string().trim().min(1).max(100);
 const description = z.string().trim().min(1).max(1000);
@@ -56,4 +58,28 @@ export const restockPartSchema = z.object({
     note: z.string().trim().max(200).optional(),
   })
   .strict()
-})
+});
+
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Tanggal harus YYYY-MM-DD')
+  .refine(isValidIsoCalendarDate, 'Tanggal tidak valid');
+
+export const partMovementsSchema = z.object({
+  params: z.object({
+    id: z.string().regex(objectIdRegex, 'ID suku cadang tidak valid'),
+  }),
+  query: z
+    .object({
+      type: z.enum(MOVEMENT_TYPE).optional(),
+      startDate: isoDate.optional(),
+      endDate: isoDate.optional(),
+      page: z.coerce.number().int().min(1).optional(),
+      limit: z.coerce.number().int().min(1).max(100).optional(),
+    })
+    .strict()
+    .refine(
+      ({ startDate, endDate }) => !startDate || !endDate || startDate <= endDate,
+      'startDate tidak boleh setelah endDate'
+    ),
+});

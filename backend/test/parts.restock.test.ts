@@ -186,3 +186,17 @@ test('konkurensi: restock dan pemakaian di tiket tidak saling menimpa (no lost u
   for (const r of results) assert.equal(r.status, 200, r.body.message);
   assert.equal(await stockOf(partId), before + RESTOCKS - USAGES);
 });
+
+test('restock mencatat mutasi stok beserta note', async () => {
+  const {StockMovement}  = await import('../src/models/stockMovement.model');
+  const before = await stockOf(partId);
+  const r = await call('PATCH', restockUrl(partId), kasirToken, {quantity:5, note: 'Kiriman pemasok A'})
+  assert.equal(r.status, 200, r.body.message);
+
+  const movements = await StockMovement.find({partId, type: 'restock', note: 'Kiriman pemasok A'}).lean()
+  assert.equal(movements.length, 1)
+  assert.equal(movements[0].quantity, 5)
+  assert.equal(movements[0].stockAfter, before + 5)
+  assert.equal(movements[0].stockAfter, r.body.data.stock)
+
+})
