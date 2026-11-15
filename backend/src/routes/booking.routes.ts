@@ -9,6 +9,7 @@ import {
   updateStatus,
   addPartToBooking,
   removePartFromBooking,
+  cancelOwnBooking,
 } from '../controllers/booking.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/rbac.middleware';
@@ -21,6 +22,7 @@ import {
   updateStatusSchema,
   addPartToBookingSchema,
   bookingQuerySchema,
+  cancelOwnBookingSchema,
 } from '../validations/booking.validation';
 
 const router = Router();
@@ -61,6 +63,13 @@ router.put(
   authorizeRoles(USER_ROLES.ADMIN, USER_ROLES.KASIR, USER_ROLES.MEKANIK),
   validate(updateStatusSchema),
   updateStatus
+);
+
+router.patch(
+  '/:id/cancel',
+  authorizeRoles(USER_ROLES.PELANGGAN),
+  validate(cancelOwnBookingSchema),
+  cancelOwnBooking
 );
 
 router.post(

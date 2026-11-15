@@ -147,3 +147,14 @@ export const bookingQuerySchema = z.object({
       }
     ),
 });
+
+export const cancelOwnBookingSchema = z.object({
+  params: z.object({
+    id: z.string().regex(objectIdRegex, 'Format ID tiket servis tidak valid'),
+  }),
+  body: z
+    .object({
+      reason: z.string().trim().max(300, 'Alasan pembatalan maksimal 300 karakter').optional(),
+    })
+    .strict(),
+});
