@@ -26,6 +26,7 @@ import {
   startOfJakartaDay,
 } from '../utils/jakartaDate';
 import { changeStock, notifyLowStock } from '../services/stock.service';
+import { normalizePlate } from '../utils/plate';
 import { LowStockItem } from '../services/mail.service';
 
 const MAX_BOOKING_CREATE_ATTEMPTS = 5;
@@ -86,7 +87,7 @@ export const createOnlineBooking = async (
       customerId: customer._id,
       customerName: customer.name,
       customerPhone: customer.phone,
-      plateNumber: plateNumber.toUpperCase(),
+      plateNumber: normalizePlate(plateNumber),
       motorModel,
       complaint,
       serviceId: serviceId ? new Types.ObjectId(serviceId) : undefined,
@@ -167,7 +168,7 @@ export const createWalkInBooking = async (
       bookingType: BOOKING_TYPE.WALK_IN,
       customerName,
       customerPhone,
-      plateNumber: plateNumber.toUpperCase(),
+      plateNumber: normalizePlate(plateNumber),
       motorModel,
       complaint,
       serviceId: serviceId ? new Types.ObjectId(serviceId) : undefined,
