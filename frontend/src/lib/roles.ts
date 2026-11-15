@@ -1,11 +1,19 @@
 import type { UserRole } from "@/types/api";
 
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Admin",
+  kasir: "Kasir",
+  mekanik: "Mekanik",
+  pemilik: "Pemilik",
+  pelanggan: "Pelanggan",
+};
+
 // Role-based area routing. admin can reach both staff and owner areas; its
 // default home is the staff dashboard.
 export const ROLE_HOME: Record<UserRole, string> = {
   pelanggan: "/pelanggan",
-  kasir: "/staff",
-  admin: "/staff",
+  kasir: "/staff/board",
+  admin: "/staff/board",
   mekanik: "/mekanik",
   pemilik: "/owner",
 };

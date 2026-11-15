@@ -54,18 +54,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Daftar akun pelanggan</CardTitle>
-          <CardDescription>
-            Buat akun untuk memesan servis online dan memantau riwayat kendaraan
-            Anda.
-          </CardDescription>
+    <main className="flex flex-1 justify-center px-4 py-14 sm:py-20">
+      <Card className="w-full max-w-sm border-0 bg-transparent">
+        <CardHeader className="px-0 pt-0">
+          <CardTitle className="font-display text-4xl font-bold uppercase">Buat akun</CardTitle>
+          <CardDescription>Untuk memesan servis online dan melihat riwayat motor Anda.</CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={onSubmit}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-0">
               <FormField
                 control={form.control}
                 name="name"
@@ -93,11 +90,11 @@ export default function RegisterPage() {
                 placeholder="Minimal 6 karakter"
               />
             </CardContent>
-            <CardFooter className="flex flex-col items-stretch gap-4">
+            <CardFooter className="flex flex-col items-stretch gap-4 px-0">
               <Button type="submit" disabled={register.isPending}>
                 {register.isPending ? "Memproses..." : "Daftar"}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Sudah punya akun?{" "}
                 <Link
                   href="/login"

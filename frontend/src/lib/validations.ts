@@ -6,6 +6,13 @@ import { z } from "zod";
 
 export const STAFF_ROLES = ["admin", "kasir", "mekanik", "pemilik"] as const;
 
+// Mirrors backend/src/validations/common.validation.ts phoneSchema
+export const phoneFieldSchema = z
+  .string()
+  .trim()
+  .min(1, "Nomor telepon wajib diisi")
+  .regex(/^[0-9]{10,13}$/, "Nomor telepon harus 10 sampai 13 digit angka");
+
 const intString = (label: string, min = 0) =>
   z
     .string()
@@ -45,7 +52,7 @@ export const registerFormSchema = z.object({
     .min(1, "Email wajib diisi")
     .email("Format alamat email tidak valid"),
   password: z.string().min(6, "Kata sandi minimal 6 karakter"),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 digit"),
+  phone: phoneFieldSchema,
 });
 export type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
@@ -56,7 +63,7 @@ export const updateProfileFormSchema = z.object({
     .trim()
     .min(2, "Nama minimal 2 karakter")
     .max(100, "Nama maksimal 100 karakter"),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 digit"),
+  phone: phoneFieldSchema,
 });
 export type UpdateProfileFormValues = z.infer<typeof updateProfileFormSchema>;
 
@@ -108,11 +115,7 @@ export const createWalkInBookingFormSchema = z.object({
     .trim()
     .min(2, "Nama pelanggan minimal 2 karakter")
     .max(100, "Nama pelanggan maksimal 100 karakter"),
-  customerPhone: z
-    .string()
-    .trim()
-    .min(8, "Nomor telepon minimal 8 karakter")
-    .max(20, "Nomor telepon maksimal 20 karakter"),
+  customerPhone: phoneFieldSchema,
   plateNumber: z
     .string()
     .trim()
@@ -153,6 +156,17 @@ export const partFormSchema = z.object({
 });
 export type PartFormValues = z.infer<typeof partFormSchema>;
 
+// Mirrors backend/src/validations/catalog.validation.ts restockPartSchema
+export const restockPartFormSchema = z.object({
+  quantity: intString("Jumlah tambahan", 1),
+  note: z
+    .string()
+    .trim()
+    .max(200, "Catatan maksimal 200 karakter")
+    .optional(),
+});
+export type RestockPartFormValues = z.infer<typeof restockPartFormSchema>;
+
 // Mirrors backend/src/validations/catalog.validation.ts service schema
 export const serviceFormSchema = z.object({
   name: z.string().trim().min(1, "Nama wajib diisi").max(100),
@@ -174,7 +188,7 @@ export const createStaffFormSchema = z.object({
   role: z.enum(STAFF_ROLES, {
     message: "Peran harus salah satu dari: admin, kasir, mekanik, pemilik",
   }),
-  phone: z.string().trim().min(8, "Nomor telepon minimal 8 karakter"),
+  phone: phoneFieldSchema,
 });
 export type CreateStaffFormValues = z.infer<typeof createStaffFormSchema>;
 

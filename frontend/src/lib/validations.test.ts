@@ -4,9 +4,11 @@ import {
   changePasswordFormSchema,
   createOnlineBookingFormSchema,
   createStaffFormSchema,
+  createWalkInBookingFormSchema,
   loginFormSchema,
   partFormSchema,
   registerFormSchema,
+  restockPartFormSchema,
   serviceFormSchema,
   updateProfileFormSchema,
   validateDateRange,
@@ -39,6 +41,46 @@ describe("centralized Zod v4 form schemas", () => {
     ).toBe(true);
   });
 
+  it("enforces 10-13 digit numeric phone numbers matching backend phoneSchema", () => {
+    expect(
+      registerFormSchema.safeParse({
+        name: "Andi",
+        email: "andi@motorcenter.id",
+        password: "password123",
+        phone: "081234567", // 9 digits -> rejected
+      }).success
+    ).toBe(false);
+
+    expect(
+      registerFormSchema.safeParse({
+        name: "Andi",
+        email: "andi@motorcenter.id",
+        password: "password123",
+        phone: "08123456789012", // 14 digits -> rejected
+      }).success
+    ).toBe(false);
+
+    expect(
+      createWalkInBookingFormSchema.safeParse({
+        customerName: "Andi",
+        customerPhone: "+62812345678", // non-digits -> rejected
+        plateNumber: "B 1234 XYZ",
+        motorModel: "Honda Beat",
+        complaint: "Ganti oli",
+      }).success
+    ).toBe(false);
+
+    expect(
+      createWalkInBookingFormSchema.safeParse({
+        customerName: "Andi",
+        customerPhone: "081234567890", // 12 digits -> accepted
+        plateNumber: "B 1234 XYZ",
+        motorModel: "Honda Beat",
+        complaint: "Ganti oli",
+      }).success
+    ).toBe(true);
+  });
+
   it("enforces password confirmation and rejects reusing oldPassword", () => {
     const sameAsOld = changePasswordFormSchema.safeParse({
       oldPassword: "secret123",
@@ -62,7 +104,7 @@ describe("centralized Zod v4 form schemas", () => {
     expect(valid.success).toBe(true);
   });
 
-  it("validates integer string inputs for parts and services", () => {
+  it("validates integer string inputs for parts, restock, and services", () => {
     expect(
       partFormSchema.safeParse({
         code: "OIL-001",
@@ -82,6 +124,19 @@ describe("centralized Zod v4 form schemas", () => {
         minStock: "2",
         price: "55000",
         unit: "botol",
+      }).success
+    ).toBe(false);
+
+    expect(
+      restockPartFormSchema.safeParse({
+        quantity: "5",
+        note: "Supplier AHM",
+      }).success
+    ).toBe(true);
+
+    expect(
+      restockPartFormSchema.safeParse({
+        quantity: "0",
       }).success
     ).toBe(false);
 

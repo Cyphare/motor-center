@@ -11,7 +11,7 @@ export default function PelangganLayananPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Layanan"
-        description="Layanan servis yang tersedia di MotorCenter. Harga dan estimasi durasi bersifat perkiraan dan dapat disesuaikan setelah pemeriksaan."
+        description="Harga perkiraan. Biaya akhir ditentukan setelah motor diperiksa."
         actions={
           <Button asChild size="sm">
             <Link href="/pelanggan/baru">Pesan Servis</Link>

@@ -1,5 +1,10 @@
-import { request } from "@/lib/api-client";
-import type { Part } from "@/types/api";
+import { request, requestPaginated } from "@/lib/api-client";
+import type {
+  PaginationMeta,
+  Part,
+  StockMovement,
+  StockMovementType,
+} from "@/types/api";
 
 export interface PartListQuery {
   includeInactive?: boolean;
@@ -16,6 +21,19 @@ export interface CreatePartPayload {
 }
 
 export type UpdatePartPayload = Partial<CreatePartPayload>;
+
+export interface RestockPartPayload {
+  quantity: number;
+  note?: string;
+}
+
+export interface PartMovementsQuery {
+  type?: StockMovementType;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
 
 export function list(query: PartListQuery = {}): Promise<Part[]> {
   return request<Part[]>({
@@ -39,6 +57,28 @@ export function create(payload: CreatePartPayload): Promise<Part> {
 
 export function update(id: string, payload: UpdatePartPayload): Promise<Part> {
   return request<Part>({ method: "PUT", url: `/parts/${id}`, data: payload });
+}
+
+export function restock(
+  id: string,
+  payload: RestockPartPayload
+): Promise<Part> {
+  return request<Part>({
+    method: "PATCH",
+    url: `/parts/${id}/restock`,
+    data: payload,
+  });
+}
+
+export function movements(
+  id: string,
+  query: PartMovementsQuery = {}
+): Promise<{ data: StockMovement[]; pagination?: PaginationMeta }> {
+  return requestPaginated<StockMovement[]>({
+    method: "GET",
+    url: `/parts/${id}/movements`,
+    params: query,
+  });
 }
 
 export function remove(id: string): Promise<Part> {

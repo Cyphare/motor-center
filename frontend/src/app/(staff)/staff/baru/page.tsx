@@ -102,8 +102,7 @@ export default function NewWalkInPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-10">
       <PageHeader
-        title="Tiket Walk-in Baru"
-        description="Buat tiket untuk pelanggan yang datang langsung ke bengkel."
+        title="Tiket Walk-in"
       />
 
       <Card className="mt-8">

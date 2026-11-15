@@ -1,11 +1,11 @@
 import * as React from "react";
-import { Inbox } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export interface EmptyStateProps {
   title: string;
   description?: string;
+  /** Optional; most empty states read better as plain text. */
   icon?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
@@ -21,20 +21,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed p-10 text-center",
+        "flex flex-col items-start gap-1 border-y py-8 text-sm",
         className
       )}
     >
-      <div className="mb-3 text-muted-foreground">
-        {icon ?? <Inbox className="h-8 w-8" />}
-      </div>
-      <h3 className="text-sm font-semibold">{title}</h3>
+      {icon && <div className="mb-2 text-muted-foreground">{icon}</div>}
+      <p className="font-semibold">{title}</p>
       {description && (
-        <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-          {description}
-        </p>
+        <p className="max-w-md text-muted-foreground">{description}</p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }

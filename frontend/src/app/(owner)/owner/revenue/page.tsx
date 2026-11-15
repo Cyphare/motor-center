@@ -45,7 +45,7 @@ export default function OwnerRevenuePage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Laporan Omzet"
-        description="Omzet berdasarkan tanggal pengambilan motor (Diambil), per hari dalam zona waktu WIB."
+        description="Dihitung dari tanggal motor diambil, per hari (WIB)."
       />
 
       <Card className="mt-6">
@@ -76,7 +76,7 @@ export default function OwnerRevenuePage() {
       </Card>
 
       {formError && (
-        <p className="mt-3 text-sm text-red-600" role="alert">
+        <p className="mt-3 text-sm text-destructive" role="alert">
           {formError}
         </p>
       )}

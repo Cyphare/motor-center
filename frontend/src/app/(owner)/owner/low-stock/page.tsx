@@ -1,13 +1,12 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { Indicator } from "@/components/indicator";
 
 import { PageHeader } from "@/components/page-header";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { TableSkeleton } from "@/components/loading-state";
-import { Badge } from "@/components/ui/badge";
 import { useLowStockParts } from "@/hooks/use-queries";
 import { formatRupiah } from "@/lib/format";
 import type { Part } from "@/types/api";
@@ -24,7 +23,7 @@ export default function OwnerLowStockPage() {
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <PageHeader
         title="Suku Cadang Menipis"
-        description="Semua suku cadang aktif yang stoknya berada di bawah atau sama dengan batas minimum."
+        description="Stok di bawah atau sama dengan batas minimum."
       />
 
       <div className="mt-8">
@@ -58,13 +57,7 @@ export default function OwnerLowStockPage() {
                   <span className="flex items-center gap-2">
                     {part.stock} {part.unit}
                     {isLowStock(part) && (
-                      <Badge
-                        variant="outline"
-                        className="border-red-200 bg-red-50 text-red-700"
-                      >
-                        <AlertTriangle className="mr-1 h-3 w-3" />
-                        Stok menipis
-                      </Badge>
+                      <Indicator tone="danger">Menipis</Indicator>
                     )}
                   </span>
                 ),

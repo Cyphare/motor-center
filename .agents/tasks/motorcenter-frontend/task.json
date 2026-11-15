@@ -1,7 +1,0 @@
-{
-  "task_id": "task-motorcenter-frontend",
-  "task_description": "Build a complete, rubric-maximizing Next.js (App Router) + TypeScript + Tailwind + shadcn/ui frontend for the existing MotorCenter Express/MongoDB backend, covering all five roles (pelanggan, kasir, admin, mekanik, pemilik), the 5-stage sequential service flow, and the two G6 third-party surfaces (automated email notices + PDF invoice download). Also verify the backend already satisfies rubric points BE1-BE5 and record evidence, fixing only genuine defects. Default to a dummy MongoDB connection with clearly documented instructions for switching to a real Atlas string; never commit secrets.",
-  "status": "pending",
-  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
-  "blocked_reason": null
-}

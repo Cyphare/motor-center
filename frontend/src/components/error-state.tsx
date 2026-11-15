@@ -1,5 +1,4 @@
 import * as React from "react";
-import { AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,7 @@ export interface ErrorStateProps {
   className?: string;
 }
 
+/** Inline error: a destructive rule on the left, no tinted box. */
 export function ErrorState({
   title = "Terjadi kesalahan",
   message,
@@ -19,21 +19,16 @@ export function ErrorState({
 }: ErrorStateProps) {
   return (
     <div
+      role="alert"
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 p-8 text-center",
+        "flex flex-col items-start gap-1 border-l-2 border-destructive py-2 pl-4 text-sm",
         className
       )}
     >
-      <AlertTriangle className="mb-3 h-7 w-7 text-red-600" />
-      <h3 className="text-sm font-semibold text-red-800">{title}</h3>
-      {message && <p className="mt-1 text-sm text-red-700">{message}</p>}
+      <p className="font-semibold text-destructive">{title}</p>
+      {message && <p className="text-muted-foreground">{message}</p>}
       {onRetry && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4"
-          onClick={onRetry}
-        >
+        <Button variant="outline" size="sm" className="mt-2" onClick={onRetry}>
           Coba lagi
         </Button>
       )}

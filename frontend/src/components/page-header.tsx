@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 
 export interface PageHeaderProps {
   title: string;
-  description?: string;
+  /** Short factual context (counts, ids). Skip it rather than restate the title. */
+  description?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
 }
@@ -18,12 +19,14 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between",
         className
       )}
     >
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <div className="space-y-0.5">
+        <h1 className="text-3xl font-bold leading-none tracking-tight">
+          {title}
+        </h1>
         {description && (
           <p className="text-sm text-muted-foreground">{description}</p>
         )}

@@ -13,7 +13,7 @@ describe("ALLOWED_TRANSITIONS", () => {
   it("mirrors the backend status flow exactly, including Dibatalkan", () => {
     expect(ALLOWED_TRANSITIONS).toEqual({
       Antre: ["Diperiksa", "Dibatalkan"],
-      Diperiksa: ["Dikerjakan"],
+      Diperiksa: ["Dikerjakan", "Dibatalkan"],
       Dikerjakan: ["Selesai"],
       Selesai: ["Diambil"],
       Diambil: [],
@@ -23,10 +23,11 @@ describe("ALLOWED_TRANSITIONS", () => {
 });
 
 describe("canTransition", () => {
-  it("allows documented forward transitions", () => {
+  it("allows documented forward transitions and cancellation from Antre/Diperiksa", () => {
     expect(canTransition("Antre", "Diperiksa")).toBe(true);
     expect(canTransition("Antre", "Dibatalkan")).toBe(true);
     expect(canTransition("Diperiksa", "Dikerjakan")).toBe(true);
+    expect(canTransition("Diperiksa", "Dibatalkan")).toBe(true);
     expect(canTransition("Dikerjakan", "Selesai")).toBe(true);
     expect(canTransition("Selesai", "Diambil")).toBe(true);
   });
@@ -35,6 +36,7 @@ describe("canTransition", () => {
     expect(canTransition("Antre", "Dikerjakan")).toBe(false);
     expect(canTransition("Diperiksa", "Selesai")).toBe(false);
     expect(canTransition("Dikerjakan", "Antre")).toBe(false);
+    expect(canTransition("Dikerjakan", "Dibatalkan")).toBe(false);
   });
 
   it("rejects any transition from terminal states", () => {
@@ -46,6 +48,7 @@ describe("canTransition", () => {
 describe("nextStatuses / isTerminalStatus", () => {
   it("returns allowed next statuses", () => {
     expect(nextStatuses("Antre")).toEqual(["Diperiksa", "Dibatalkan"]);
+    expect(nextStatuses("Diperiksa")).toEqual(["Dikerjakan", "Dibatalkan"]);
     expect(nextStatuses("Selesai")).toEqual(["Diambil"]);
   });
 
@@ -61,6 +64,10 @@ describe("nextStatusesForRole", () => {
     for (const role of ["admin", "kasir"] as const) {
       expect(nextStatusesForRole("Antre", role)).toEqual([
         "Diperiksa",
+        "Dibatalkan",
+      ]);
+      expect(nextStatusesForRole("Diperiksa", role)).toEqual([
+        "Dikerjakan",
         "Dibatalkan",
       ]);
       expect(nextStatusesForRole("Selesai", role)).toEqual(["Diambil"]);

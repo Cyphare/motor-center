@@ -19,7 +19,7 @@ export function nextStatuses(from: ServiceStatus): ServiceStatus[] {
 /**
  * Role-scoped next statuses mirroring backend `updateStatus` authorization:
  * - `admin` and `kasir` may execute any legal transition (including
- *   `Antre -> Dibatalkan` and `Selesai -> Diambil`).
+ *   `Antre/Diperiksa -> Dibatalkan` and `Selesai -> Diambil`).
  * - `mekanik` may only advance active work (`Diperiksa`, `Dikerjakan`,
  *   `Selesai`) — cancellation (`Dibatalkan`) and checkout (`Diambil`) are
  *   restricted to `admin`/`kasir`.
