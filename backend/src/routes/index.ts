@@ -6,6 +6,7 @@ import bookingRoutes from './booking.routes';
 import serviceRoutes from './service.routes';
 import partRoutes from './part.routes';
 import reportRoutes from './report.routes';
+import vehicleRoutes from './vehicle.routes';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.get('/', (_req, res) => {
       services: '/api/services',
       parts: '/api/parts',
       reports: '/api/reports',
+      vehicles: '/api/vehicles/:plateNumber/history',
     },
   });
 });
@@ -34,5 +36,6 @@ router.use('/bookings', bookingRoutes);
 router.use('/services', serviceRoutes);
 router.use('/parts', partRoutes);
 router.use('/reports', reportRoutes);
+router.use('/vehicles', vehicleRoutes);
 
 export default router;
