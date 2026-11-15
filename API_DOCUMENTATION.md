@@ -1019,11 +1019,27 @@ Omzet dihitung hanya dari tiket berstatus `Diambil`, memakai `pickedUpAt` serta 
 
 * **Hak Akses**: `admin`, `kasir`, `pemilik`, atau pelanggan pemilik tiket online. Mekanik dan pelanggan lain mendapat `403`.
 * **Syarat**: tiket sudah `Diambil` dan memiliki `pickedUpAt`; sebelum itu respons `400`.
-* **Respons 200**: stream PDF A4 dengan `Content-Type: application/pdf`. Nomor faktur memakai `bookingNumber`; isi mencakup pelanggan, kendaraan, tanggal pengambilan WIB, jasa, snapshot suku cadang, dan total. Berkas tidak disimpan di database.
+* **Respons 200**: stream PDF A4 dengan `Content-Type: application/pdf` dan nama berkas `<bookingNumber>.pdf`. Berkas tidak disimpan di database. Isi faktur (FR-CUST-04):
+  * **Kop**: logo MotorCenter (`backend/assets/logo.png`), nama, alamat, telepon, dan jam operasional bengkel, serta judul *FAKTUR SERVIS*.
+  * **Nomor faktur** sama dengan `bookingNumber` (misalnya `MC-20260929-0002`) sehingga faktur langsung bisa dicocokkan dengan tiketnya, dan **tanggal pengambilan** dalam WIB.
+  * **Pelanggan** (nama, telepon), **kendaraan** (model, plat, tanggal masuk), dan **petugas**: nama kasir yang mengubah status menjadi `Diambil` (diambil dari `statusHistory`) serta nama mekanik.
+  * **Tabel rincian**: No, Deskripsi, Qty, Harga Satuan, Subtotal. Baris pertama adalah jasa servis, diikuti setiap suku cadang dengan harga *snapshot* saat dipasang. Daftar yang panjang berlanjut ke halaman berikutnya dengan baris judul tabel diulang.
+  * **Total**: biaya jasa, total suku cadang, dan TOTAL, ditambah catatan mekanik bila ada.
+
+### Identitas bengkel
+
+Alamat, telepon, dan jam operasional pada faktur dan email diambil dari variabel lingkungan opsional berikut. Nilai bawaannya fiktif.
+
+| Variabel | Bawaan |
+| :--- | :--- |
+| `APP_NAME` | `MotorCenter` |
+| `WORKSHOP_ADDRESS` | `Jl. Kaliurang Km 5 No. 12, Sleman, Yogyakarta` |
+| `WORKSHOP_PHONE` | `0274-123456` |
+| `WORKSHOP_HOURS` | `Senin-Sabtu, 08.00-17.00 WIB` |
 
 ### Email otomatis
 
-Booking online mengirim konfirmasi ke email akun pelanggan. Saat tiket online menjadi `Selesai`, email kedua memuat estimasi jasa, part, dan total. Tiket walk-in tidak mengirim email. Tanpa konfigurasi SMTP, backend memakai Ethereal dan mencatat URL pratinjau; isi `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, dan `SMTP_FROM` bersama untuk pengiriman nyata. Kegagalan email dicatat setelah tiket tersimpan dan tidak mengubah respons sukses; tidak ada pengiriman ulang otomatis.
+Booking online mengirim konfirmasi ke email akun pelanggan, berisi nomor tiket, kendaraan, layanan, keluhan, jadwal, status, dan estimasi biaya jasa. Saat tiket online menjadi `Selesai`, email kedua (FR-CUST-05) memberi tahu bahwa motor siap diambil, lengkap dengan tabel rincian jasa dan suku cadang, total, catatan mekanik, dan jam operasional bengkel. Semua email dikirim dalam format HTML (gaya *inline* agar tampil benar di klien email) beserta versi teks biasa, dan setiap data dari pengguna di-*escape* sebelum dimasukkan ke HTML. Tiket walk-in tidak mengirim email. Tanpa konfigurasi SMTP, backend memakai Ethereal dan mencatat URL pratinjau; isi `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, dan `SMTP_FROM` bersama untuk pengiriman nyata. Kegagalan email dicatat setelah tiket tersimpan dan tidak mengubah respons sukses; tidak ada pengiriman ulang otomatis.
 
 **Peringatan stok menipis (FR-OWN-04).** Saat pemakaian suku cadang di tiket (`POST /api/bookings/:id/parts`) atau koreksi stok (`PUT /api/parts/:id`) membuat stok turun dari **di atas** `minStock` menjadi `minStock` atau di bawahnya, satu email (HTML dan teks biasa) dikirim ke seluruh akun `pemilik` dan `admin` yang aktif. Pemakaian berikutnya selama stok masih di bawah batas tidak mengirim email lagi. Peringatan baru muncul kembali setelah stok naik di atas `minStock` (misalnya lewat restock) lalu turun lagi. Email dikirim setelah transaksi tersimpan, dan kegagalannya hanya dicatat di log tanpa membatalkan pemakaian atau koreksi stok.
 

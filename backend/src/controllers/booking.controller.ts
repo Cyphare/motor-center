@@ -4,7 +4,7 @@ import { Booking, IBooking } from '../models/booking.model';
 import { User } from '../models/user.model';
 import { Service } from '../models/service.model';
 import { sendBookingEmail } from '../services/mail.service';
-import { writeInvoice } from '../services/pdf.service';
+import { loadInvoiceData, writeInvoice } from '../services/pdf.service';
 import {
   ALLOWED_STATUS_TRANSITIONS,
   BOOKING_TYPE,
@@ -327,7 +327,7 @@ export const getInvoicePdf = async (
     if (booking.status !== SERVICE_STATUS.DIAMBIL || !booking.pickedUpAt) {
       throw new BadRequestError('Faktur tersedia setelah tiket berstatus Diambil');
     }
-    writeInvoice(booking, res);
+    writeInvoice(await loadInvoiceData(booking), res);
   } catch (error) {
     next(error);
   }
