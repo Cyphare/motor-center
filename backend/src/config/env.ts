@@ -26,6 +26,9 @@ export const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  WORKSHOP_ADDRESS: z.string().trim().min(1).default('Jl. Kaliurang Km 5 No. 12, Sleman, Yogyakarta'),
+  WORKSHOP_PHONE: z.string().trim().min(1).default('0274-123456'),
+  WORKSHOP_HOURS: z.string().trim().min(1).default('Senin-Sabtu, 08.00-17.00 WIB'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
@@ -82,6 +85,9 @@ export const parseEnv = (
     SMTP_USER: typeof rawEnv.SMTP_USER === 'string' ? rawEnv.SMTP_USER : undefined,
     SMTP_PASS: typeof rawEnv.SMTP_PASS === 'string' ? rawEnv.SMTP_PASS : undefined,
     SMTP_FROM: typeof rawEnv.SMTP_FROM === 'string' ? rawEnv.SMTP_FROM : undefined,
+    WORKSHOP_ADDRESS: pickValid(nonEmptyString('WORKSHOP_ADDRESS'), rawEnv.WORKSHOP_ADDRESS, 'Jl. Kaliurang Km 5 No. 12, Sleman, Yogyakarta'),
+    WORKSHOP_PHONE: pickValid(nonEmptyString('WORKSHOP_PHONE'), rawEnv.WORKSHOP_PHONE, '0274-123456'),
+    WORKSHOP_HOURS: pickValid(nonEmptyString('WORKSHOP_HOURS'), rawEnv.WORKSHOP_HOURS, 'Senin-Sabtu, 08.00-17.00 WIB'),
   };
 };
 
