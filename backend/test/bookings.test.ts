@@ -236,3 +236,75 @@ test('pembatalan tetap mengembalikan stok walau part sudah dinonaktifkan', async
   assert.ok(returned, 'mutasi return tidak tercatat');
   assert.equal(returned.quantity, 4);
 });
+
+async function createOnlineBooking(token = pelangganToken): Promise<string> {
+  const r = await call('POST', '/bookings/online', token, { ...baseBody, serviceId: activeServiceId });
+  assert.equal(r.status, 201, `booking online gagal: ${r.body.message}`);
+  return r.body.data._id;
+}
+
+test('pelanggan membatalkan booking online miliknya yang masih Antre: 200, status Dibatalkan, alasan tercatat', async () => {
+  const bookingId = await createOnlineBooking();
+
+  const r = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken, { reason: 'Jadwal bentrok' });
+  assert.equal(r.status, 200, r.body.message);
+  assert.equal(r.body.data.status, SERVICE_STATUS.DIBATALKAN);
+  const last = r.body.data.statusHistory.at(-1);
+  assert.equal(last.status, SERVICE_STATUS.DIBATALKAN);
+  assert.equal(last.notes, 'Dibatalkan oleh pelanggan: Jadwal bentrok');
+
+  const active = await call('GET', `/bookings?status=${SERVICE_STATUS.ANTRE}&limit=100`, kasirToken);
+  assert.ok(!active.body.data.some((b: { _id: string }) => b._id === bookingId), 'tiket tidak boleh muncul di antrean aktif');
+});
+
+test('pembatalan tanpa alasan tetap berhasil', async () => {
+  const bookingId = await createOnlineBooking();
+  const r = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken);
+  assert.equal(r.status, 200, r.body.message);
+  assert.equal(r.body.data.statusHistory.at(-1).notes, 'Dibatalkan oleh pelanggan');
+});
+
+test('booking yang sudah Diperiksa tidak bisa dibatalkan pelanggan: 400', async () => {
+  const bookingId = await createOnlineBooking();
+  const assign = await call('PUT', `/bookings/${bookingId}/assign`, kasirToken, { mechanicId: mekanikId });
+  assert.equal(assign.status, 200, assign.body.message);
+  const check = await call('PUT', `/bookings/${bookingId}/status`, mekanikToken, { status: SERVICE_STATUS.DIPERIKSA });
+  assert.equal(check.status, 200, check.body.message);
+
+  const r = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken);
+  assert.equal(r.status, 400, r.body.message);
+  assert.match(r.body.message, /hubungi kasir/);
+});
+
+test('booking milik pelanggan lain: 403, dan status tidak berubah', async () => {
+  const { User } = await import('../src/models/user.model');
+  await User.create({ name: 'Pelanggan Lain', email: 'lain@example.com', password: 'lain1234', phone: '081234567898', role: USER_ROLES.PELANGGAN });
+  const otherToken = (await login('lain@example.com', 'lain1234')).accessToken;
+  const bookingId = await createOnlineBooking(otherToken);
+
+  const r = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken);
+  assert.equal(r.status, 403, r.body.message);
+  const detail = await call('GET', `/bookings/${bookingId}`, otherToken);
+  assert.equal(detail.body.data.status, SERVICE_STATUS.ANTRE);
+});
+
+test('pembatalan oleh pelanggan: validasi dan otorisasi', async () => {
+  const bookingId = await createOnlineBooking();
+
+  const kasir = await call('PATCH', `/bookings/${bookingId}/cancel`, kasirToken);
+  assert.equal(kasir.status, 403, 'kasir memakai PUT /status, bukan endpoint pelanggan');
+
+  const longReason = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken, { reason: 'x'.repeat(301) });
+  assert.equal(longReason.status, 400, longReason.body.message);
+
+  const badId = await call('PATCH', '/bookings/bukan-id/cancel', pelangganToken);
+  assert.equal(badId.status, 400, badId.body.message);
+
+  const unknown = await call('PATCH', `/bookings/${new mongoose.Types.ObjectId()}/cancel`, pelangganToken);
+  assert.equal(unknown.status, 404, unknown.body.message);
+
+  const twice = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken);
+  assert.equal(twice.status, 200, twice.body.message);
+  const again = await call('PATCH', `/bookings/${bookingId}/cancel`, pelangganToken);
+  assert.equal(again.status, 400, 'booking yang sudah dibatalkan tidak bisa dibatalkan lagi');
+});

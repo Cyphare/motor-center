@@ -232,6 +232,7 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `GET` | `/api/bookings/:id` | Authorized | Ticket detail, status audit history, and parts used |
 | `PUT` | `/api/bookings/:id/assign` | Admin, Kasir | Assign mechanic to a service ticket |
 | `PUT` | `/api/bookings/:id/status` | Admin, Kasir, assigned Mekanik | Sequential status changes; `Dibatalkan` (from `Antre` or `Diperiksa`, returns installed parts to stock), `Diambil`, and `serviceFee` restricted to Admin/Kasir |
+| `PATCH` | `/api/bookings/:id/cancel` | Pelanggan (own) | Cancel own online booking while still `Antre`, with optional reason |
 | `POST` | `/api/bookings/:id/parts` | Admin, Kasir, Mekanik | Add spare part & atomically deduct warehouse stock |
 | `DELETE`| `/api/bookings/:id/parts/:partItemId`| Admin, Kasir, Mekanik | Remove a ticket line item and restore stock in one transaction |
 | `GET` | `/api/vehicles/:plateNumber/history` | Admin, Kasir, Mekanik, Pelanggan (own) | Full service history of one vehicle, newest first; plate matching ignores case and spacing |

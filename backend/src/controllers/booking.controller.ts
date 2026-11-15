@@ -637,3 +637,51 @@ export const removePartFromBooking = async (
     next(error);
   }
 };
+
+export const cancelOwnBooking = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) throw new UnauthorizedError();
+    const { reason } = req.body as { reason?: string };
+    const customerId = new Types.ObjectId(req.user.id);
+
+    const booking = await Booking.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        bookingType: BOOKING_TYPE.ONLINE,
+        customerId,
+        status: SERVICE_STATUS.ANTRE,
+      },
+      {
+        $set: { status: SERVICE_STATUS.DIBATALKAN },
+        $push: {
+          statusHistory: {
+            status: SERVICE_STATUS.DIBATALKAN,
+            changedBy: customerId,
+            changedAt: new Date(),
+            notes: reason ? `Dibatalkan oleh pelanggan: ${reason}` : 'Dibatalkan oleh pelanggan',
+          },
+        },
+      },
+      { new: true }
+    );
+
+    if (!booking) {
+      const existing = await Booking.findById(req.params.id).select('bookingType customerId status');
+      if (!existing) throw new NotFoundError('Tiket servis tidak ditemukan');
+      if (existing.bookingType !== BOOKING_TYPE.ONLINE || !existing.customerId?.equals(customerId)) {
+        throw new ForbiddenError('Anda hanya dapat membatalkan booking online milik Anda sendiri');
+      }
+      throw new BadRequestError(
+        `Booking tidak dapat dibatalkan karena sudah berstatus '${existing.status}'. Silakan hubungi kasir bengkel`
+      );
+    }
+
+    sendSuccess(res, `Booking ${booking.bookingNumber} berhasil dibatalkan`, booking);
+  } catch (error) {
+    next(error);
+  }
+};
