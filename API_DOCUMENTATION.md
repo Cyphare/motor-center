@@ -594,6 +594,50 @@ Membatalkan pemakaian suku cadang dari tiket servis. Pengembalian stok dan perub
 
 ---
 
+## 4a. Riwayat Servis Kendaraan (`/api/vehicles`)
+
+### `GET /api/vehicles/:plateNumber/history`
+Menampilkan seluruh riwayat servis sebuah kendaraan berdasarkan plat nomor (FR-CASH-05), diurutkan dari kunjungan terbaru (`serviceDate`, lalu `createdAt`).
+* **Hak Akses**: `admin`, `kasir`, `mekanik`, serta `pelanggan` (hanya tiket online miliknya sendiri, aturan yang sama dengan `GET /api/bookings/:id`). `pemilik` tidak memiliki akses (`403`), sesuai matriks RBAC.
+* **Path Param**: `plateNumber` adalah huruf, angka, dan spasi (3–15 karakter). Kirim dalam bentuk URL-encoded, misalnya `AB%201234%20CD`.
+* **Normalisasi Plat**: plat dirapikan (huruf kapital, spasi di awal/akhir dibuang, spasi ganda dijadikan satu), lalu dicocokkan **tanpa memperhatikan spasi**. Pencarian `ab 1234 cd`, `AB1234CD`, maupun `  ab   1234 cd` menemukan kendaraan yang sama, tetapi `AB 1234 CDE` tidak ikut cocok. Tiket baru (online maupun walk-in) juga disimpan dengan plat yang sudah dinormalkan.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Ditemukan 2 riwayat servis untuk kendaraan AB 1234 CD",
+  "data": {
+    "plateNumber": "AB 1234 CD",
+    "totalVisits": 2,
+    "visits": [
+      {
+        "_id": "674a93b2c45e89a1b2c3d4f2",
+        "bookingNumber": "MC-20260929-0002",
+        "bookingType": "walk-in",
+        "status": "Diambil",
+        "serviceDate": "2026-09-29T02:00:00.000Z",
+        "pickedUpAt": "2026-09-29T08:30:00.000Z",
+        "plateNumber": "AB 1234 CD",
+        "motorModel": "Honda Vario 160",
+        "complaint": "Ganti oli dan rem bunyi",
+        "serviceName": "Servis Rutin",
+        "mechanicId": { "_id": "674a91b2c45e89a1b2c3d4e2", "name": "Budi Santoso" },
+        "mechanicNotes": "Kampas rem depan diganti",
+        "partsUsed": [
+          { "code": "OLI-MPX2-08L", "name": "Oli MPX2 0.8L", "price": 60000, "quantity": 1, "subtotal": 60000 }
+        ],
+        "serviceFee": 50000,
+        "partsTotalCost": 60000,
+        "grandTotal": 110000
+      }
+    ]
+  }
+}
+```
+* **Plat Belum Pernah Diservis**: tetap `200 OK` dengan `visits: []`, `totalVisits: 0`, dan pesan `"Riwayat servis untuk kendaraan <plat> belum tersedia"`. Pelanggan yang mencari plat yang tidak ada di tiket miliknya juga menerima daftar kosong.
+* **Privasi**: nama dan nomor telepon pelanggan tidak ikut dikirim, karena endpoint ini juga dibuka untuk mekanik.
+* **Galat**: `400` (plat kurang dari 3 karakter, lebih dari 15, atau mengandung simbol), `401` (tanpa token), `403` (`pemilik`).
+
 ---
 
 ## 5. Katalog Suku Cadang (`/api/parts`)

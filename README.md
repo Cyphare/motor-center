@@ -234,6 +234,7 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `PUT` | `/api/bookings/:id/status` | Admin, Kasir, assigned Mekanik | Sequential status changes; `Dibatalkan` (from `Antre` or `Diperiksa`, returns installed parts to stock), `Diambil`, and `serviceFee` restricted to Admin/Kasir |
 | `POST` | `/api/bookings/:id/parts` | Admin, Kasir, Mekanik | Add spare part & atomically deduct warehouse stock |
 | `DELETE`| `/api/bookings/:id/parts/:partItemId`| Admin, Kasir, Mekanik | Remove a ticket line item and restore stock in one transaction |
+| `GET` | `/api/vehicles/:plateNumber/history` | Admin, Kasir, Mekanik, Pelanggan (own) | Full service history of one vehicle, newest first; plate matching ignores case and spacing |
 | `GET` | `/api/reports/dashboard` | Admin, Pemilik | Summary metrics: revenue, active jobs, completed jobs, low-stock count |
 | `GET` | `/api/reports/revenue` | Admin, Pemilik | Financial performance report with date range filters |
 | `GET` | `/api/bookings/:id/invoice/pdf` | Admin, Kasir, Pemilik, owning Pelanggan | Download PDF receipt invoice after `Diambil` |
