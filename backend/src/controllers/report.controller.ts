@@ -34,11 +34,17 @@ export const getDashboard = async (_req: Request, res: Response, next: NextFunct
   } catch (error) { next(error); }
 };
 
+const resolveRange = (req: Request): { startDate: string; endDate: string } => {
+  const today = jakartaDate(new Date());
+  return {
+    startDate: (req.query.startDate as string) || `${today.slice(0, 7)}-01`,
+    endDate: (req.query.endDate as string) || today,
+  };
+};
+
 export const getRevenue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const today = jakartaDate(new Date());
-    const startDate = req.query.startDate as string || `${today.slice(0, 7)}-01`;
-    const endDate = req.query.endDate as string || today;
+    const { startDate, endDate } = resolveRange(req);
     const days = await Booking.aggregate([
       { $match: pickedUp(startDate, endDate) },
       { $group: {
@@ -55,5 +61,62 @@ export const getRevenue = async (req: Request, res: Response, next: NextFunction
       revenue: sum.revenue + day.revenue,
     }), { serviceTotal: 0, partsTotal: 0, revenue: 0 });
     sendSuccess(res, 'Laporan omzet berhasil diambil', { startDate, endDate, ...totals, days });
+  } catch (error) { next(error); }
+};
+
+export const getTopItems = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { startDate, endDate } = resolveRange(req);
+    const limit = Number(req.query.limit) || 10;
+    const match = pickedUp(startDate, endDate);
+
+    const [parts, services, counts] = await Promise.all([
+      Booking.aggregate([
+        { $match: match },
+        { $sort: { pickedUpAt: 1 } },
+        { $unwind: '$partsUsed' },
+        { $group: {
+          _id: '$partsUsed.partId',
+          code: { $last: '$partsUsed.code' },
+          name: { $last: '$partsUsed.name' },
+          quantity: { $sum: '$partsUsed.quantity' },
+          revenue: { $sum: '$partsUsed.subtotal' },
+          ticketIds: { $addToSet: '$_id' },
+        } },
+        { $sort: { quantity: -1, revenue: -1, name: 1 } },
+        { $limit: limit },
+        { $project: { _id: 0, partId: '$_id', code: 1, name: 1, quantity: 1, revenue: 1, ticketCount: { $size: '$ticketIds' } } },
+      ]),
+      Booking.aggregate([
+        { $match: { ...match, serviceId: { $ne: null } } },
+        { $sort: { pickedUpAt: 1 } },
+        { $group: {
+          _id: '$serviceId',
+          name: { $last: '$serviceName' },
+          ticketCount: { $sum: 1 },
+          revenue: { $sum: '$serviceFee' },
+        } },
+        { $sort: { ticketCount: -1, revenue: -1, name: 1 } },
+        { $limit: limit },
+        { $project: { _id: 0, serviceId: '$_id', name: 1, ticketCount: 1, revenue: 1 } },
+      ]),
+      Booking.aggregate([
+        { $match: match },
+        { $group: {
+          _id: null,
+          ticketCount: { $sum: 1 },
+          servicelessTickets: { $sum: { $cond: [{ $ifNull: ['$serviceId', false] }, 0, 1] } },
+        } },
+      ]),
+    ]);
+
+    sendSuccess(res, 'Ringkasan terlaris berhasil diambil', {
+      startDate,
+      endDate,
+      ticketCount: counts[0]?.ticketCount ?? 0,
+      servicelessTickets: counts[0]?.servicelessTickets ?? 0,
+      parts,
+      services,
+    });
   } catch (error) { next(error); }
 };

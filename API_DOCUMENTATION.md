@@ -1015,6 +1015,39 @@ Omzet dihitung hanya dari tiket berstatus `Diambil`, memakai `pickedUpAt` serta 
 * **Query opsional**: `startDate` dan `endDate` dalam format `YYYY-MM-DD`, wajib dipakai bersama dan tidak boleh terbalik. Keduanya inklusif menurut WIB. Tanpa query, rentang tanggal 1 bulan berjalan sampai hari ini.
 * **Respons 200**: `data.startDate`, `endDate`, `serviceTotal`, `partsTotal`, `revenue`, dan `days`. Setiap elemen `days` berisi `date`, `serviceTotal`, `partsTotal`, `revenue`, `ticketCount`; hari tanpa transaksi tidak muncul. Rentang kosong menghasilkan total nol dan `days: []`.
 
+### `GET /api/reports/top-items`
+Ringkasan suku cadang terlaris dan paket layanan yang paling sering dipesan (FR-OWN-05), sebagai dasar pengadaan stok. Hanya tiket berstatus `Diambil` dengan `pickedUpAt` di dalam rentang yang dihitung.
+* **Hak Akses**: `admin`, `pemilik`.
+* **Query opsional** (field lain ditolak):
+  * `startDate`, `endDate`: aturan yang sama dengan `GET /api/reports/revenue` (wajib bersama, tidak terbalik, inklusif menurut WIB, default bulan berjalan).
+  * `limit`: jumlah item per daftar, `1`–`50`, default `10`.
+* **Urutan**:
+  * `parts`: jumlah unit terbanyak (`quantity`), lalu nilai penjualan (`revenue`), lalu nama.
+  * `services`: jumlah tiket terbanyak (`ticketCount`), lalu total biaya jasa (`revenue`), lalu nama.
+* **Nama** diambil dari *snapshot* di tiket (`partsUsed.name`, `serviceName`), bukan dari katalog, sehingga suku cadang atau layanan yang sudah dinonaktifkan atau diganti namanya tetap tercatat dengan benar. Jika namanya pernah berubah, yang ditampilkan adalah nama pada tiket terakhir.
+* **Tiket tanpa paket layanan** tidak masuk daftar `services`, tetapi jumlahnya dilaporkan di `servicelessTickets`. `ticketCount` di tingkat atas adalah jumlah seluruh tiket `Diambil` dalam rentang.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Ringkasan terlaris berhasil diambil",
+  "data": {
+    "startDate": "2026-03-01",
+    "endDate": "2026-03-10",
+    "ticketCount": 5,
+    "servicelessTickets": 1,
+    "parts": [
+      { "partId": "674a94a1c45e89a1b2c3d501", "code": "OLI-1", "name": "Oli Mesin", "quantity": 6, "revenue": 270000, "ticketCount": 3 },
+      { "partId": "674a94a1c45e89a1b2c3d502", "code": "BUSI-1", "name": "Busi", "quantity": 6, "revenue": 150000, "ticketCount": 3 }
+    ],
+    "services": [
+      { "serviceId": "674a95a1c45e89a1b2c3d601", "name": "Servis Rutin", "ticketCount": 3, "revenue": 225000 }
+    ]
+  }
+}
+```
+* **Galat**: `400` (tanggal tidak valid, hanya satu tanggal, rentang terbalik, `limit` di luar 1–50, atau query tak dikenal), `401`, `403` (selain admin dan pemilik).
+
 ### `GET /api/bookings/:id/invoice/pdf`
 
 * **Hak Akses**: `admin`, `kasir`, `pemilik`, atau pelanggan pemilik tiket online. Mekanik dan pelanggan lain mendapat `403`.

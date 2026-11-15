@@ -238,6 +238,7 @@ All accounts use `bcryptjs` hashing (salt rounds: 10):
 | `GET` | `/api/vehicles/:plateNumber/history` | Admin, Kasir, Mekanik, Pelanggan (own) | Full service history of one vehicle, newest first; plate matching ignores case and spacing |
 | `GET` | `/api/reports/dashboard` | Admin, Pemilik | Summary metrics: revenue, active jobs, completed jobs, low-stock count |
 | `GET` | `/api/reports/revenue` | Admin, Pemilik | Financial performance report with date range filters |
+| `GET` | `/api/reports/top-items` | Admin, Pemilik | Top parts by units sold and top service packages by tickets, with date range and `limit` |
 | `GET` | `/api/bookings/:id/invoice/pdf` | Admin, Kasir, Pemilik, owning Pelanggan | Download PDF receipt invoice after `Diambil` |
 
 Full request payloads and sample JSON responses are documented in [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md).
