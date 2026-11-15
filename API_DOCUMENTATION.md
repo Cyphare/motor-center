@@ -536,6 +536,34 @@ Memperbarui status pengerjaan tiket servis secara bertahap (`Antre` $\rightarrow
 }
 ```
 
+### `PATCH /api/bookings/:id/cancel`
+Pelanggan membatalkan booking online miliknya sendiri selama pengerjaan belum dimulai (FR-CUST-06). Tiket yang dibatalkan berstatus `Dibatalkan` dan tidak lagi muncul di antrean aktif bengkel. Kasir dan admin tetap membatalkan tiket lewat `PUT /api/bookings/:id/status`.
+* **Hak Akses**: `pelanggan` (hanya tiket online miliknya).
+* **Request Body** (opsional, field lain ditolak):
+```json
+{
+  "reason": "Jadwal bentrok"
+}
+```
+* **Aturan**: hanya tiket berstatus `Antre` yang dapat dibatalkan. Pemeriksaan status dan perubahan status dilakukan dalam satu operasi atomik, sehingga tiket yang sedang dipindah ke `Diperiksa` oleh mekanik pada saat yang sama tidak ikut terbatalkan. Riwayat status mencatat pelanggan sebagai pengubah dengan catatan `"Dibatalkan oleh pelanggan: <alasan>"`. Tiket berstatus `Antre` belum memiliki suku cadang, sehingga tidak ada stok yang perlu dikembalikan.
+* **Sample Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Booking MC-20260929-0001 berhasil dibatalkan",
+  "data": {
+    "_id": "674a93a1c45e89a1b2c3d4f1",
+    "bookingNumber": "MC-20260929-0001",
+    "status": "Dibatalkan",
+    "statusHistory": [
+      { "status": "Antre", "notes": "Reservasi servis online berhasil dibuat oleh pelanggan" },
+      { "status": "Dibatalkan", "notes": "Dibatalkan oleh pelanggan: Jadwal bentrok" }
+    ]
+  }
+}
+```
+* **Galat**: `400` (tiket sudah `Diperiksa` atau sesudahnya, termasuk yang sudah dibatalkan; pesan meminta pelanggan menghubungi kasir), `400` (id tidak valid atau `reason` lebih dari 300 karakter), `403` (tiket milik pelanggan lain, tiket walk-in, atau peran selain pelanggan), `404` (tiket tidak ditemukan).
+
 ### `POST /api/bookings/:id/parts`
 Mekanik menambahkan suku cadang ke tiket servis. Stok gudang dan tiket diperbarui dalam satu transaksi MongoDB; jika penyimpanan tiket gagal, potongan stok dibatalkan.
 * **Hak Akses**: `admin`, `kasir`, `mekanik` (tiket tugasnya).
