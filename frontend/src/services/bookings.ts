@@ -115,6 +115,14 @@ export function removePart(id: string, partItemId: string): Promise<Booking> {
   });
 }
 
+export function cancelOwn(id: string, reason?: string): Promise<Booking> {
+  return request<Booking>({
+    method: "PATCH",
+    url: `/bookings/${id}/cancel`,
+    data: reason ? { reason } : {},
+  });
+}
+
 export function invoicePdfBlob(id: string): Promise<Blob> {
   return requestBlob({ method: "GET", url: `/bookings/${id}/invoice/pdf` });
 }

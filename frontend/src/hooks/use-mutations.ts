@@ -185,6 +185,19 @@ export function useMoveBooking() {
   });
 }
 
+export function useCancelOwnBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      bookingsService.cancelOwn(id, reason),
+    onSuccess: (booking) => {
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast.success(`Booking ${booking.bookingNumber} berhasil dibatalkan`);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
 export function useAssignMechanic() {
   const queryClient = useQueryClient();
   return useMutation({

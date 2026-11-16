@@ -1,8 +1,12 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Mail } from "lucide-react";
+import { Mail, XCircle } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 import { Section } from "@/components/section";
 import { StatusStepper } from "@/components/status-stepper";
@@ -17,6 +21,7 @@ import {
 import { TicketParts } from "@/components/booking/ticket-parts";
 import { TRACKING_REFETCH_MS, useBooking } from "@/hooks/use-queries";
 import { useAuth } from "@/hooks/use-auth";
+import { useCancelOwnBooking } from "@/hooks/use-mutations";
 import { isTerminalStatus } from "@/lib/derive";
 import { formatDateTime } from "@/lib/format";
 import { getStatusMeta } from "@/lib/status-meta";
@@ -29,6 +34,8 @@ export default function PelangganBookingDetailPage() {
   const id = params?.id;
   const { data: booking, isLoading, isError, error, refetch, dataUpdatedAt } =
     useBooking(id, { pollMs: TRACKING_REFETCH_MS });
+  const cancelBooking = useCancelOwnBooking();
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
 
   if (isLoading) {
     return <LoadingState label="Memuat servis..." className="flex-1" />;
@@ -46,6 +53,8 @@ export default function PelangganBookingDetailPage() {
   }
 
   const live = !isTerminalStatus(booking.status);
+  const canCancel =
+    booking.bookingType === "online" && booking.status === "Antre";
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-6 sm:px-6">
@@ -82,7 +91,34 @@ export default function PelangganBookingDetailPage() {
           </p>
         )}
         <InvoiceButton booking={booking} />
+        {canCancel && (
+          <Button
+            variant="outline"
+            className="text-destructive"
+            onClick={() => setConfirmCancel(true)}
+          >
+            <XCircle className="h-4 w-4" />
+            Batalkan booking
+          </Button>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title="Batalkan booking ini?"
+        description={`Booking ${booking.bookingNumber} akan dibatalkan. Tindakan ini tidak dapat diurungkan.`}
+        confirmLabel="Ya, batalkan"
+        cancelLabel="Tidak"
+        destructive
+        loading={cancelBooking.isPending}
+        onConfirm={() =>
+          cancelBooking.mutate(
+            { id: booking._id },
+            { onSettled: () => setConfirmCancel(false) }
+          )
+        }
+      />
 
       <Section title="Keluhan">
         <div className="space-y-2 text-sm">
