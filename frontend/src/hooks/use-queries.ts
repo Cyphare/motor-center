@@ -47,12 +47,14 @@ export function useBooking(
     queryKey: queryKeys.booking(id ?? ""),
     queryFn: () => bookingsService.getById(id as string),
     enabled: Boolean(id),
-    refetchInterval: pollMs
-      ? (query) => {
-          const status = query.state.data?.status;
-          return status && isTerminalStatus(status) ? false : pollMs;
+    ...(pollMs
+      ? {
+          refetchInterval: (query: { state: { data?: Booking } }) => {
+            const status = query.state.data?.status;
+            return status && isTerminalStatus(status) ? false : pollMs;
+          },
         }
-      : undefined,
+      : {}),
   });
 }
 
