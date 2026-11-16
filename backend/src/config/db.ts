@@ -1,5 +1,15 @@
+import dns from 'node:dns';
 import mongoose from 'mongoose';
 import { env } from './env';
+
+// Optional DNS override for local development. Some Windows setups make Node
+// read 127.0.0.1 as its DNS server, which breaks the SRV lookup that
+// mongodb+srv:// URIs need ("querySrv ECONNREFUSED"). Set DNS_SERVERS in .env
+// (comma-separated, e.g. 8.8.8.8,1.1.1.1) to force public resolvers.
+const dnsServers = process.env.DNS_SERVERS?.split(',').map((s) => s.trim()).filter(Boolean);
+if (dnsServers?.length) {
+  dns.setServers(dnsServers);
+}
 
 export interface DatabaseStatus {
   status: 'disconnected' | 'connected' | 'connecting' | 'disconnecting' | 'unknown';
