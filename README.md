@@ -4,6 +4,10 @@ Final Project for **Web Application Development (Pengembangan Aplikasi Web - TKI
 **Full-Stack Web Application (Express REST API & Next.js App Router)**  
 Department of Electrical Engineering and Information Technology, Faculty of Engineering, Universitas Gadjah Mada.
 
+Project is deployed in two places:
+- Back-end: Railway
+- Front-end: Vercel (https://motor-center-six.vercel.app/)
+
 ---
 
 ## Team Members (Group 6)
